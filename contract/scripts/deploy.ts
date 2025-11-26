@@ -38,10 +38,23 @@ class StarknetDeployer {
      * Read compiled contract files
      */
     private readContract(contractName: string) {
+        // Scarb creates files with module names (lowercase with underscores)
         const sierraPath = path.join(__dirname, `../target/dev/ciphra_pay_${contractName}.contract_class.json`);
         const casmPath = path.join(__dirname, `../target/dev/ciphra_pay_${contractName}.compiled_contract_class.json`);
 
         if (!fs.existsSync(sierraPath) || !fs.existsSync(casmPath)) {
+            // List available files for debugging
+            const targetDir = path.join(__dirname, "../target/dev");
+            console.log(`\n❌ Contract files not found!`);
+            console.log(`   Expected: ciphra_pay_${contractName}.contract_class.json`);
+            console.log(`   Looking in: ${targetDir}`);
+            
+            if (fs.existsSync(targetDir)) {
+                const files = fs.readdirSync(targetDir).filter(f => f.endsWith('.json'));
+                console.log(`\n   Available files:`);
+                files.forEach(f => console.log(`     - ${f}`));
+            }
+            
             throw new Error(`Contract files not found for ${contractName}. Did you run 'scarb build'?`);
         }
 
@@ -136,8 +149,10 @@ class StarknetDeployer {
         console.log("=".repeat(60));
 
         try {
+            // IMPORTANT: Use module names (lowercase with underscores) to match Scarb output
+            
             // 1. Deploy Atomic Swap Contract
-            const atomicSwapClassHash = await this.declareContract("AtomicSwap");
+            const atomicSwapClassHash = await this.declareContract("atomic_swap");
             const atomicSwapAddress = await this.deployContract(
                 "AtomicSwap",
                 atomicSwapClassHash,
@@ -145,7 +160,7 @@ class StarknetDeployer {
             );
 
             // 2. Deploy Escrow Contract
-            const escrowClassHash = await this.declareContract("Escrow");
+            const escrowClassHash = await this.declareContract("escrow");
             const escrowAddress = await this.deployContract(
                 "Escrow",
                 escrowClassHash,
@@ -153,7 +168,7 @@ class StarknetDeployer {
             );
 
             // 3. Deploy Bridge Connector Contract
-            const bridgeConnectorClassHash = await this.declareContract("BridgeConnector");
+            const bridgeConnectorClassHash = await this.declareContract("bridge_connector");
             const bridgeConnectorAddress = await this.deployContract(
                 "BridgeConnector",
                 bridgeConnectorClassHash,
