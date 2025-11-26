@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2024_07"
 
 [dependencies]
-starknet = "2.8.4"
-openzeppelin = { git = "https://github.com/OpenZeppelin/cairo-contracts.git", rev = "main" }
+starknet = "2.7.0"
 
 [[target.starknet-contract]]
 

@@ -1,6 +1,8 @@
 use starknet::ContractAddress;
 use starknet::get_caller_address;
 use starknet::get_block_timestamp;
+use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
 #[starknet::interface]
 trait IAtomicSwap<TContractState> {
@@ -10,7 +12,6 @@ trait IAtomicSwap<TContractState> {
         recipient: ContractAddress,
         hash_lock: felt252,
         time_lock: u64,
-        token_address: ContractAddress,
         amount: u256
     );
     
@@ -31,18 +32,17 @@ trait IAtomicSwap<TContractState> {
     ) -> SwapDetails;
 }
 
-#[derive(Drop, Copy, Serde, starknet::Store)]
+#[derive(Drop, Serde, starknet::Store)]
 struct SwapDetails {
     initiator: ContractAddress,
     recipient: ContractAddress,
-    token_address: ContractAddress,
     amount: u256,
     hash_lock: felt252,
     time_lock: u64,
     status: SwapStatus,
 }
 
-#[derive(Drop, Copy, Serde, starknet::Store, PartialEq)]
+#[derive(Drop, Serde, starknet::Store, PartialEq)]
 enum SwapStatus {
     Empty,
     Active,
@@ -54,11 +54,8 @@ enum SwapStatus {
 mod AtomicSwap {
     use super::{SwapDetails, SwapStatus, IAtomicSwap};
     use starknet::{ContractAddress, get_caller_address, get_block_timestamp};
-    use starknet::storage::{
-        Map, StorageMapReadAccess, StorageMapWriteAccess,
-        StoragePointerReadAccess, StoragePointerWriteAccess
-    };
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
     use core::poseidon::poseidon_hash_span;
 
     #[storage]
@@ -113,7 +110,6 @@ mod AtomicSwap {
             recipient: ContractAddress,
             hash_lock: felt252,
             time_lock: u64,
-            token_address: ContractAddress,
             amount: u256
         ) {
             let caller = get_caller_address();
@@ -126,16 +122,10 @@ mod AtomicSwap {
             // Validate time lock is in the future
             assert(time_lock > current_time, 'Time lock must be future');
             
-            // Transfer tokens from initiator to contract
-            let token = IERC20Dispatcher { contract_address: token_address };
-            let contract_address = starknet::get_contract_address();
-            token.transfer_from(caller, contract_address, amount);
-            
             // Store swap details
             let swap_details = SwapDetails {
                 initiator: caller,
                 recipient,
-                token_address,
                 amount,
                 hash_lock,
                 time_lock,
@@ -159,7 +149,7 @@ mod AtomicSwap {
             swap_id: felt252,
             secret: felt252
         ) {
-            let mut swap = self.swaps.read(swap_id);
+            let swap = self.swaps.read(swap_id);
             
             // Validate swap is active
             assert(swap.status == SwapStatus::Active, 'Swap not active');
@@ -173,13 +163,16 @@ mod AtomicSwap {
             let current_time = get_block_timestamp();
             assert(current_time <= swap.time_lock, 'Time lock expired');
             
-            // Transfer tokens to recipient
-            let token = IERC20Dispatcher { contract_address: swap.token_address };
-            token.transfer(swap.recipient, swap.amount);
-            
             // Update swap status
-            swap.status = SwapStatus::Completed;
-            self.swaps.write(swap_id, swap);
+            let updated_swap = SwapDetails {
+                initiator: swap.initiator,
+                recipient: swap.recipient,
+                amount: swap.amount,
+                hash_lock: swap.hash_lock,
+                time_lock: swap.time_lock,
+                status: SwapStatus::Completed,
+            };
+            self.swaps.write(swap_id, updated_swap);
             
             // Emit event
             self.emit(SwapCompleted {
@@ -193,7 +186,7 @@ mod AtomicSwap {
             ref self: ContractState,
             swap_id: felt252
         ) {
-            let mut swap = self.swaps.read(swap_id);
+            let swap = self.swaps.read(swap_id);
             let caller = get_caller_address();
             
             // Validate swap is active
@@ -206,13 +199,16 @@ mod AtomicSwap {
             let current_time = get_block_timestamp();
             assert(current_time > swap.time_lock, 'Time lock not expired');
             
-            // Transfer tokens back to initiator
-            let token = IERC20Dispatcher { contract_address: swap.token_address };
-            token.transfer(swap.initiator, swap.amount);
-            
             // Update swap status
-            swap.status = SwapStatus::Refunded;
-            self.swaps.write(swap_id, swap);
+            let updated_swap = SwapDetails {
+                initiator: swap.initiator,
+                recipient: swap.recipient,
+                amount: swap.amount,
+                hash_lock: swap.hash_lock,
+                time_lock: swap.time_lock,
+                status: SwapStatus::Refunded,
+            };
+            self.swaps.write(swap_id, updated_swap);
             
             // Emit event
             self.emit(SwapRefunded {

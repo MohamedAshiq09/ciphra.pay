@@ -1,4 +1,8 @@
 use starknet::ContractAddress;
+use starknet::get_caller_address;
+use starknet::get_block_timestamp;
+use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
 #[starknet::interface]
 trait IEscrow<TContractState> {
@@ -6,7 +10,6 @@ trait IEscrow<TContractState> {
         ref self: TContractState,
         escrow_id: felt252,
         beneficiary: ContractAddress,
-        token_address: ContractAddress,
         amount: u256,
         release_time: u64
     );
@@ -27,17 +30,16 @@ trait IEscrow<TContractState> {
     ) -> EscrowDetails;
 }
 
-#[derive(Drop, Copy, Serde, starknet::Store)]
+#[derive(Drop, Serde, starknet::Store)]
 struct EscrowDetails {
     depositor: ContractAddress,
     beneficiary: ContractAddress,
-    token_address: ContractAddress,
     amount: u256,
     release_time: u64,
     status: EscrowStatus,
 }
 
-#[derive(Drop, Copy, Serde, starknet::Store, PartialEq)]
+#[derive(Drop, Serde, starknet::Store, PartialEq)]
 enum EscrowStatus {
     Empty,
     Active,
@@ -49,11 +51,8 @@ enum EscrowStatus {
 mod Escrow {
     use super::{EscrowDetails, EscrowStatus, IEscrow};
     use starknet::{ContractAddress, get_caller_address, get_block_timestamp};
-    use starknet::storage::{
-        Map, StorageMapReadAccess, StorageMapWriteAccess,
-        StoragePointerReadAccess, StoragePointerWriteAccess
-    };
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
     #[storage]
     struct Storage {
@@ -106,7 +105,6 @@ mod Escrow {
             ref self: ContractState,
             escrow_id: felt252,
             beneficiary: ContractAddress,
-            token_address: ContractAddress,
             amount: u256,
             release_time: u64
         ) {
@@ -123,16 +121,10 @@ mod Escrow {
             // Validate amount is greater than zero
             assert(amount > 0, 'Amount must be positive');
             
-            // Transfer tokens from depositor to contract
-            let token = IERC20Dispatcher { contract_address: token_address };
-            let contract_address = starknet::get_contract_address();
-            token.transfer_from(caller, contract_address, amount);
-            
             // Store escrow details
             let escrow_details = EscrowDetails {
                 depositor: caller,
                 beneficiary,
-                token_address,
                 amount,
                 release_time,
                 status: EscrowStatus::Active,
@@ -154,7 +146,7 @@ mod Escrow {
             ref self: ContractState,
             escrow_id: felt252
         ) {
-            let mut escrow = self.escrows.read(escrow_id);
+            let escrow = self.escrows.read(escrow_id);
             let current_time = get_block_timestamp();
             
             // Validate escrow is active
@@ -163,13 +155,15 @@ mod Escrow {
             // Validate release time has passed
             assert(current_time >= escrow.release_time, 'Release time not reached');
             
-            // Transfer tokens to beneficiary
-            let token = IERC20Dispatcher { contract_address: escrow.token_address };
-            token.transfer(escrow.beneficiary, escrow.amount);
-            
             // Update escrow status
-            escrow.status = EscrowStatus::Released;
-            self.escrows.write(escrow_id, escrow);
+            let updated_escrow = EscrowDetails {
+                depositor: escrow.depositor,
+                beneficiary: escrow.beneficiary,
+                amount: escrow.amount,
+                release_time: escrow.release_time,
+                status: EscrowStatus::Released,
+            };
+            self.escrows.write(escrow_id, updated_escrow);
             
             // Emit event
             self.emit(EscrowReleased {
@@ -183,7 +177,7 @@ mod Escrow {
             ref self: ContractState,
             escrow_id: felt252
         ) {
-            let mut escrow = self.escrows.read(escrow_id);
+            let escrow = self.escrows.read(escrow_id);
             let caller = get_caller_address();
             let current_time = get_block_timestamp();
             
@@ -196,13 +190,15 @@ mod Escrow {
             // Validate release time has passed (can only cancel after expiry)
             assert(current_time >= escrow.release_time, 'Cannot cancel before expiry');
             
-            // Transfer tokens back to depositor
-            let token = IERC20Dispatcher { contract_address: escrow.token_address };
-            token.transfer(escrow.depositor, escrow.amount);
-            
             // Update escrow status
-            escrow.status = EscrowStatus::Cancelled;
-            self.escrows.write(escrow_id, escrow);
+            let updated_escrow = EscrowDetails {
+                depositor: escrow.depositor,
+                beneficiary: escrow.beneficiary,
+                amount: escrow.amount,
+                release_time: escrow.release_time,
+                status: EscrowStatus::Cancelled,
+            };
+            self.escrows.write(escrow_id, updated_escrow);
             
             // Emit event
             self.emit(EscrowCancelled {

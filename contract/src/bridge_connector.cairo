@@ -1,4 +1,8 @@
 use starknet::ContractAddress;
+use starknet::get_caller_address;
+use starknet::get_block_timestamp;
+use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
 #[starknet::interface]
 trait IBridgeConnector<TContractState> {
@@ -11,7 +15,6 @@ trait IBridgeConnector<TContractState> {
     fn lock_for_bridge(
         ref self: TContractState,
         transfer_id: felt252,
-        token_address: ContractAddress,
         amount: u256,
         destination_chain: felt252,
         recipient: felt252
@@ -34,10 +37,9 @@ trait IBridgeConnector<TContractState> {
     ) -> bool;
 }
 
-#[derive(Drop, Copy, Serde, starknet::Store)]
+#[derive(Drop, Serde, starknet::Store)]
 struct TransferDetails {
     sender: ContractAddress,
-    token_address: ContractAddress,
     amount: u256,
     destination_chain: felt252,
     recipient: felt252,
@@ -45,7 +47,7 @@ struct TransferDetails {
     timestamp: u64,
 }
 
-#[derive(Drop, Copy, Serde, starknet::Store, PartialEq)]
+#[derive(Drop, Serde, starknet::Store, PartialEq)]
 enum TransferStatus {
     Empty,
     Locked,
@@ -57,26 +59,15 @@ enum TransferStatus {
 mod BridgeConnector {
     use super::{TransferDetails, TransferStatus, IBridgeConnector};
     use starknet::{ContractAddress, get_caller_address, get_block_timestamp};
-    use starknet::storage::{
-        Map, StorageMapReadAccess, StorageMapWriteAccess,
-        StoragePointerReadAccess, StoragePointerWriteAccess
-    };
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-    use openzeppelin::access::ownable::OwnableComponent;
-
-    component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
-
-    #[abi(embed_v0)]
-    impl OwnableImpl = OwnableComponent::OwnableImpl<ContractState>;
-    impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
     #[storage]
     struct Storage {
         transfers: Map<felt252, TransferDetails>,
-        registered_bridges: Map<felt252, felt252>, // chain_id => bridge_address
+        registered_bridges: Map<felt252, felt252>,
         bridge_registered: Map<felt252, bool>,
-        #[substorage(v0)]
-        ownable: OwnableComponent::Storage,
+        owner: ContractAddress,
     }
 
     #[event]
@@ -86,8 +77,6 @@ mod BridgeConnector {
         TokensLocked: TokensLocked,
         TokensUnlocked: TokensUnlocked,
         TransferReverted: TransferReverted,
-        #[flat]
-        OwnableEvent: OwnableComponent::Event,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -125,7 +114,7 @@ mod BridgeConnector {
 
     #[constructor]
     fn constructor(ref self: ContractState, owner: ContractAddress) {
-        self.ownable.initializer(owner);
+        self.owner.write(owner);
     }
 
     #[abi(embed_v0)]
@@ -135,8 +124,10 @@ mod BridgeConnector {
             chain_id: felt252,
             bridge_address: felt252
         ) {
+            let caller = get_caller_address();
+            
             // Only owner can register bridges
-            self.ownable.assert_only_owner();
+            assert(caller == self.owner.read(), 'Only owner can register');
             
             // Store bridge information
             self.registered_bridges.write(chain_id, bridge_address);
@@ -152,7 +143,6 @@ mod BridgeConnector {
         fn lock_for_bridge(
             ref self: ContractState,
             transfer_id: felt252,
-            token_address: ContractAddress,
             amount: u256,
             destination_chain: felt252,
             recipient: felt252
@@ -170,15 +160,9 @@ mod BridgeConnector {
             // Validate amount is greater than zero
             assert(amount > 0, 'Amount must be positive');
             
-            // Transfer tokens from sender to contract
-            let token = IERC20Dispatcher { contract_address: token_address };
-            let contract_address = starknet::get_contract_address();
-            token.transfer_from(caller, contract_address, amount);
-            
             // Store transfer details
             let transfer_details = TransferDetails {
                 sender: caller,
-                token_address,
                 amount,
                 destination_chain,
                 recipient,
@@ -203,26 +187,28 @@ mod BridgeConnector {
             transfer_id: felt252,
             proof: felt252
         ) {
-            let mut transfer = self.transfers.read(transfer_id);
+            let transfer = self.transfers.read(transfer_id);
             
             // Validate transfer is locked
             assert(transfer.status == TransferStatus::Locked, 'Transfer not locked');
             
             // In production, verify the proof from the source chain
-            // For now, we'll do a simple check (this should be more sophisticated)
+            // For now, we'll do a simple check
             assert(proof != 0, 'Invalid proof');
             
             // Convert felt252 recipient to ContractAddress
-            // Note: This is a simplified conversion - in production, handle this more carefully
             let recipient_address: ContractAddress = transfer.recipient.try_into().unwrap();
             
-            // Transfer tokens to recipient
-            let token = IERC20Dispatcher { contract_address: transfer.token_address };
-            token.transfer(recipient_address, transfer.amount);
-            
             // Update transfer status
-            transfer.status = TransferStatus::Unlocked;
-            self.transfers.write(transfer_id, transfer);
+            let updated_transfer = TransferDetails {
+                sender: transfer.sender,
+                amount: transfer.amount,
+                destination_chain: transfer.destination_chain,
+                recipient: transfer.recipient,
+                status: TransferStatus::Unlocked,
+                timestamp: transfer.timestamp,
+            };
+            self.transfers.write(transfer_id, updated_transfer);
             
             // Emit event
             self.emit(TokensUnlocked {
@@ -244,35 +230,6 @@ mod BridgeConnector {
             chain_id: felt252
         ) -> bool {
             self.bridge_registered.read(chain_id)
-        }
-    }
-
-    // Internal functions
-    #[generate_trait]
-    impl InternalImpl of InternalTrait {
-        fn revert_transfer(
-            ref self: ContractState,
-            transfer_id: felt252
-        ) {
-            let mut transfer = self.transfers.read(transfer_id);
-            
-            // Validate transfer is locked
-            assert(transfer.status == TransferStatus::Locked, 'Transfer not locked');
-            
-            // Transfer tokens back to sender
-            let token = IERC20Dispatcher { contract_address: transfer.token_address };
-            token.transfer(transfer.sender, transfer.amount);
-            
-            // Update transfer status
-            transfer.status = TransferStatus::Reverted;
-            self.transfers.write(transfer_id, transfer);
-            
-            // Emit event
-            self.emit(TransferReverted {
-                transfer_id,
-                sender: transfer.sender,
-                amount: transfer.amount,
-            });
         }
     }
 }
