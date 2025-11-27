@@ -1,0 +1,15 @@
+[package]
+name = "swap-contract"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+borsh = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+schemars = { workspace = true }
