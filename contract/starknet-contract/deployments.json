@@ -1,25 +1,31 @@
 {
   "network": "https://starknet-sepolia.g.alchemy.com/v2/TI9jXk5bEpPAnw6QwoziO",
   "deployer": "0x04baeae1872c93c283c9e660364fab37b22a5ba5276d176daf363d5b1d91e78c",
-  "timestamp": "2025-11-26T16:36:04.359Z",
+  "timestamp": "2025-11-27T16:27:17.893Z",
   "contracts": [
     {
       "contractName": "AtomicSwap",
       "classHash": "0x32e01256c31b1fd8347b6200593865af83f387f0546daaf1b93b3b502ba8ca2",
-      "contractAddress": "0x6d71c89c06af2211e0243fbf6ad52c81546059298558eaecb195cb23f43469b",
-      "transactionHash": "0x568860a5096c4d9f1fded1a3a678f2567f0481724c332a2fba028a79c6b3cf5"
+      "contractAddress": "0x113032fba3903bf3b0271397f765703d6d11964928a6f2c1cb85b2b40feb640",
+      "transactionHash": "0x6533b7851b0c641be9e0185988dd9d4518fd72ab001343d996d68ba5dc94bfc"
     },
     {
       "contractName": "Escrow",
       "classHash": "0x77ea0b9e8aa7148e141196c2ffa69a5ab740719e0c08250c84a3ad70a6e93dd",
-      "contractAddress": "0x662c0e55d6a0b874a90b6f76d5819b982f00261c83dd84350c28e06c6842caa",
-      "transactionHash": "0x2798eb9836af1864197f61ef9fb492636e12daad25f1adc0bf5caf48c061310"
+      "contractAddress": "0xa7e242ebb920336c4ba0ad3cf2b0f6f598a924aead1b783b4f28c8ceaaf2c9",
+      "transactionHash": "0x27af37de699b49800f7d6f3ab59ccfce9e69eab02ab0aaee8051a66a0b6b289"
     },
     {
       "contractName": "BridgeConnector",
       "classHash": "0x1ab9fcbb1e0863ddf8a249246511751d0770b7fded811e5f4792ee3e089fbd6",
-      "contractAddress": "0x2cd62fcec41718902edd2490d9a6094a63238228adcff88d1e556b9860292db",
-      "transactionHash": "0x311d615c41cc85c1b12813606b93c3067b257797baa9a5ab7a17b6b8e9d55b7"
+      "contractAddress": "0x2631be4e94dd1c586b8daa0bb86115aabccdeb8ef129e39503482829855422b",
+      "transactionHash": "0x407a8380d1aa2eb06c0a254cc23e63b9039f246b894afe3cb3a23faebf9a2ab"
+    },
+    {
+      "contractName": "P2PTransfer",
+      "classHash": "0x55aab0d80dc367209a3baca257c7c849e0afdd3d71ee6e1a6c3d28fa2af89f0",
+      "contractAddress": "0x71fbcde5660a42ce00d998eddba94c81ddf5ff570d09cc67d7a7984e34789cc",
+      "transactionHash": "0x166be81f66029f30bd48d8154d91f6975caed1615731016f09103c008d78fc3"
     }
   ]
 }
