@@ -1,0 +1,38 @@
+{
+  "name": "aztec-contracts",
+  "version": "1.0.0",
+  "description": "Private Atomic Swap Contract for Ciphra.Pay",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "clean": "rm -rf ./src/artifacts ./target",
+    "clear-store": "rm -rf ./store",
+    "codegen": "aztec codegen target --outdir src/artifacts",
+    "compile": "${AZTEC_NARGO:-aztec-nargo} compile && aztec-postprocess-contract",
+    "deploy": "NODE_NO_WARNINGS=1 node --loader ts-node/esm scripts/deploy_contract.ts",
+    "test": "yarn test:js && yarn test:nr",
+    "test:js": "rm -rf store/pxe && NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --runInBand --config jest.integration.config.json",
+    "test:nr": "aztec test"
+  },
+  "dependencies": {
+    "@aztec/accounts": "3.0.0-devnet.5",
+    "@aztec/aztec.js": "3.0.0-devnet.5",
+    "@aztec/noir-contracts.js": "3.0.0-devnet.5",
+    "@aztec/protocol-contracts": "3.0.0-devnet.5",
+    "@aztec/pxe": "3.0.0-devnet.5",
+    "@aztec/stdlib": "3.0.0-devnet.5",
+    "@aztec/test-wallet": "3.0.0-devnet.5",
+    "dotenv": "^17.2.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.11",
+    "@types/node": "^22.15.1",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.4"
+  },
+  "jest": {
+    "testTimeout": 600000
+  }
+}

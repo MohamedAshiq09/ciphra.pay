@@ -1,0 +1,8 @@
+[package]
+name = "aztec_contracts"
+type = "contract"
+authors = ["Ciphra.Pay Team"]
+compiler_version = ">=0.18.0"
+
+[dependencies]
+aztec = { git = "https://github.com/AztecProtocol/aztec-packages/", tag = "v3.0.0-devnet.5", directory = "noir-projects/aztec-nr/aztec" }
