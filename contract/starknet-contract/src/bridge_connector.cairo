@@ -5,7 +5,7 @@ use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
 #[starknet::interface]
-trait IBridgeConnector<TContractState> {
+pub trait IBridgeConnector<TContractState> {
     fn register_bridge(
         ref self: TContractState,
         chain_id: felt252,
@@ -37,18 +37,18 @@ trait IBridgeConnector<TContractState> {
     ) -> bool;
 }
 
-#[derive(Drop, Serde, starknet::Store)]
-struct TransferDetails {
-    sender: ContractAddress,
-    amount: u256,
-    destination_chain: felt252,
-    recipient: felt252,
-    status: TransferStatus,
-    timestamp: u64,
+#[derive(Drop, Serde, starknet::Store, Copy)]
+pub struct TransferDetails {
+    pub sender: ContractAddress,
+    pub amount: u256,
+    pub destination_chain: felt252,
+    pub recipient: felt252,
+    pub status: TransferStatus,
+    pub timestamp: u64,
 }
 
-#[derive(Drop, Serde, starknet::Store, PartialEq)]
-enum TransferStatus {
+#[derive(Drop, Serde, starknet::Store, PartialEq, Copy)]
+pub enum TransferStatus {
     Empty,
     Locked,
     Unlocked,
@@ -126,14 +126,11 @@ mod BridgeConnector {
         ) {
             let caller = get_caller_address();
             
-            // Only owner can register bridges
             assert(caller == self.owner.read(), 'Only owner can register');
             
-            // Store bridge information
             self.registered_bridges.write(chain_id, bridge_address);
             self.bridge_registered.write(chain_id, true);
             
-            // Emit event
             self.emit(BridgeRegistered {
                 chain_id,
                 bridge_address,
@@ -150,17 +147,11 @@ mod BridgeConnector {
             let caller = get_caller_address();
             let current_time = get_block_timestamp();
             
-            // Validate transfer doesn't exist
             let existing_transfer = self.transfers.read(transfer_id);
             assert(existing_transfer.status == TransferStatus::Empty, 'Transfer already exists');
-            
-            // Validate destination bridge is registered
             assert(self.bridge_registered.read(destination_chain), 'Bridge not registered');
-            
-            // Validate amount is greater than zero
             assert(amount > 0, 'Amount must be positive');
             
-            // Store transfer details
             let transfer_details = TransferDetails {
                 sender: caller,
                 amount,
@@ -172,7 +163,6 @@ mod BridgeConnector {
             
             self.transfers.write(transfer_id, transfer_details);
             
-            // Emit event
             self.emit(TokensLocked {
                 transfer_id,
                 sender: caller,
@@ -189,17 +179,11 @@ mod BridgeConnector {
         ) {
             let transfer = self.transfers.read(transfer_id);
             
-            // Validate transfer is locked
             assert(transfer.status == TransferStatus::Locked, 'Transfer not locked');
-            
-            // In production, verify the proof from the source chain
-            // For now, we'll do a simple check
             assert(proof != 0, 'Invalid proof');
             
-            // Convert felt252 recipient to ContractAddress
             let recipient_address: ContractAddress = transfer.recipient.try_into().unwrap();
             
-            // Update transfer status
             let updated_transfer = TransferDetails {
                 sender: transfer.sender,
                 amount: transfer.amount,
@@ -210,7 +194,6 @@ mod BridgeConnector {
             };
             self.transfers.write(transfer_id, updated_transfer);
             
-            // Emit event
             self.emit(TokensUnlocked {
                 transfer_id,
                 recipient: recipient_address,

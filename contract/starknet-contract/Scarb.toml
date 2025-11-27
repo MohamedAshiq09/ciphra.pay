@@ -5,13 +5,12 @@ edition = "2024_07"
 
 [dependencies]
 starknet = "2.7.0"
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.31.0" }
 
-# Tell Scarb your contract modules!!!
 [[target.starknet-contract]]
 sierra = true
 casm = true
-# list all modules
-modules = ["AtomicSwap", "Escrow", "BridgeConnector"]
+modules = ["AtomicSwap", "Escrow", "BridgeConnector", "P2PTransfer"]
 
 [tool.starknet]
 sierra = true

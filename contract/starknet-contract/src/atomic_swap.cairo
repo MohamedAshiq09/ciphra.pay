@@ -5,7 +5,7 @@ use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
 #[starknet::interface]
-trait IAtomicSwap<TContractState> {
+pub trait IAtomicSwap<TContractState> {
     fn initiate_swap(
         ref self: TContractState,
         swap_id: felt252,
@@ -32,18 +32,18 @@ trait IAtomicSwap<TContractState> {
     ) -> SwapDetails;
 }
 
-#[derive(Drop, Serde, starknet::Store)]
-struct SwapDetails {
-    initiator: ContractAddress,
-    recipient: ContractAddress,
-    amount: u256,
-    hash_lock: felt252,
-    time_lock: u64,
-    status: SwapStatus,
+#[derive(Drop, Serde, starknet::Store, Copy)]
+pub struct SwapDetails {
+    pub initiator: ContractAddress,
+    pub recipient: ContractAddress,
+    pub amount: u256,
+    pub hash_lock: felt252,
+    pub time_lock: u64,
+    pub status: SwapStatus,
 }
 
-#[derive(Drop, Serde, starknet::Store, PartialEq)]
-enum SwapStatus {
+#[derive(Drop, Serde, starknet::Store, PartialEq, Copy)]
+pub enum SwapStatus {
     Empty,
     Active,
     Completed,
@@ -115,14 +115,10 @@ mod AtomicSwap {
             let caller = get_caller_address();
             let current_time = get_block_timestamp();
             
-            // Validate swap doesn't exist
             let existing_swap = self.swaps.read(swap_id);
             assert(existing_swap.status == SwapStatus::Empty, 'Swap already exists');
-            
-            // Validate time lock is in the future
             assert(time_lock > current_time, 'Time lock must be future');
             
-            // Store swap details
             let swap_details = SwapDetails {
                 initiator: caller,
                 recipient,
@@ -134,7 +130,6 @@ mod AtomicSwap {
             
             self.swaps.write(swap_id, swap_details);
             
-            // Emit event
             self.emit(SwapInitiated {
                 swap_id,
                 initiator: caller,
@@ -151,19 +146,15 @@ mod AtomicSwap {
         ) {
             let swap = self.swaps.read(swap_id);
             
-            // Validate swap is active
             assert(swap.status == SwapStatus::Active, 'Swap not active');
             
-            // Validate secret matches hash lock
             let mut secret_array = array![secret];
             let computed_hash = poseidon_hash_span(secret_array.span());
             assert(computed_hash == swap.hash_lock, 'Invalid secret');
             
-            // Validate time lock hasn't expired
             let current_time = get_block_timestamp();
             assert(current_time <= swap.time_lock, 'Time lock expired');
             
-            // Update swap status
             let updated_swap = SwapDetails {
                 initiator: swap.initiator,
                 recipient: swap.recipient,
@@ -174,7 +165,6 @@ mod AtomicSwap {
             };
             self.swaps.write(swap_id, updated_swap);
             
-            // Emit event
             self.emit(SwapCompleted {
                 swap_id,
                 recipient: swap.recipient,
@@ -189,17 +179,12 @@ mod AtomicSwap {
             let swap = self.swaps.read(swap_id);
             let caller = get_caller_address();
             
-            // Validate swap is active
             assert(swap.status == SwapStatus::Active, 'Swap not active');
-            
-            // Validate caller is initiator
             assert(caller == swap.initiator, 'Only initiator can refund');
             
-            // Validate time lock has expired
             let current_time = get_block_timestamp();
             assert(current_time > swap.time_lock, 'Time lock not expired');
             
-            // Update swap status
             let updated_swap = SwapDetails {
                 initiator: swap.initiator,
                 recipient: swap.recipient,
@@ -210,7 +195,6 @@ mod AtomicSwap {
             };
             self.swaps.write(swap_id, updated_swap);
             
-            // Emit event
             self.emit(SwapRefunded {
                 swap_id,
                 initiator: swap.initiator,
