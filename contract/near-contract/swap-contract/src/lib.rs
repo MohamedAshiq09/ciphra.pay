@@ -5,12 +5,19 @@ use near_sdk::{env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Pr
 use near_sdk::serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
-
 #[derive(BorshSerialize, BorshStorageKey)]
 pub enum StorageKey {
     Swaps,
     SwapsByInitiator,
     SwapsByParticipant,
+    OracleVerifications,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub enum HashAlgorithm {
+    SHA256,
+    Poseidon,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, JsonSchema)]
@@ -31,12 +38,23 @@ pub struct AtomicSwap {
     pub participant: String,
     pub amount: String,
     pub hash_lock: String,
+    pub hash_algorithm: HashAlgorithm,
     pub time_lock: u64,
     pub status: SwapStatus,
     pub secret: Option<String>,
     pub target_chain: String,
     pub target_address: String,
+    pub counterparty_swap_id: Option<String>,
     pub created_at: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct PoseidonVerification {
+    pub swap_id: String,
+    pub poseidon_hash: String,
+    pub verified: bool,
+    pub verified_at: Option<u64>,
 }
 
 #[near_bindgen]
@@ -45,7 +63,10 @@ pub struct SwapContract {
     pub swaps: UnorderedMap<String, AtomicSwap>,
     pub swaps_by_initiator: LookupMap<AccountId, Vec<String>>,
     pub swaps_by_participant: LookupMap<AccountId, Vec<String>>,
+    pub oracle_verifications: UnorderedMap<String, PoseidonVerification>,
     pub owner: AccountId,
+    pub oracle_account: AccountId,
+    pub fee_recipient: AccountId,
     pub fee_percentage: u16,
     pub min_time_lock: u64,
     pub max_time_lock: u64,
@@ -54,13 +75,17 @@ pub struct SwapContract {
 #[near_bindgen]
 impl SwapContract {
     #[init]
-    pub fn new(owner: AccountId) -> Self {
+    pub fn new(owner: AccountId, oracle_account: AccountId) -> Self {
+        let fee_recipient = owner.clone();
         Self {
             swaps: UnorderedMap::new(StorageKey::Swaps),
             swaps_by_initiator: LookupMap::new(StorageKey::SwapsByInitiator),
             swaps_by_participant: LookupMap::new(StorageKey::SwapsByParticipant),
+            oracle_verifications: UnorderedMap::new(StorageKey::OracleVerifications),
             owner,
-            fee_percentage: 30,
+            oracle_account,
+            fee_recipient,
+            fee_percentage: 30, // 0.3% default
             min_time_lock: 3600,
             max_time_lock: 86400,
         }
@@ -72,9 +97,11 @@ impl SwapContract {
         swap_id: String,
         participant: AccountId,
         hash_lock: String,
+        hash_algorithm: HashAlgorithm,
         time_lock_duration: u64,
         target_chain: String,
         target_address: String,
+        counterparty_swap_id: Option<String>,
     ) -> AtomicSwap {
         let initiator = env::predecessor_account_id();
         let amount = env::attached_deposit();
@@ -95,11 +122,13 @@ impl SwapContract {
             participant: participant.to_string(),
             amount: amount.as_yoctonear().to_string(),
             hash_lock,
+            hash_algorithm,
             time_lock,
             status: SwapStatus::Initiated,
             secret: None,
             target_chain,
             target_address,
+            counterparty_swap_id,
             created_at: env::block_timestamp(),
         };
         
@@ -107,7 +136,10 @@ impl SwapContract {
         self.add_swap_to_initiator(&initiator, &swap_id);
         self.add_swap_to_participant(&participant, &swap_id);
         
-        env::log_str(&format!("Swap initiated: {}", swap_id));
+        env::log_str(&format!(
+            "Swap initiated: {} | Algorithm: {:?} | Counterparty: {:?}",
+            swap_id, swap.hash_algorithm, swap.counterparty_swap_id
+        ));
         
         swap
     }
@@ -135,11 +167,19 @@ impl SwapContract {
         env::log_str(&format!("Swap locked: {}", swap_id));
     }
 
-    pub fn complete_swap(&mut self, swap_id: String, secret: String) -> Promise {
+    pub fn complete_swap_with_oracle_verification(&mut self, swap_id: String, secret: String) -> Promise {
         let mut swap = self.swaps.get(&swap_id).expect("Swap not found");
         
-        let secret_hash = self.hash_secret(&secret);
-        assert_eq!(secret_hash, swap.hash_lock, "Invalid secret");
+        // For Poseidon hashes, require Oracle verification
+        if swap.hash_algorithm == HashAlgorithm::Poseidon {
+            let verification = self.oracle_verifications.get(&swap_id)
+                .expect("Oracle verification required for Poseidon");
+            assert!(verification.verified, "Oracle verification not completed");
+        } else {
+            // For SHA256, verify locally
+            let secret_hash = self.hash_secret(&secret);
+            assert_eq!(secret_hash, swap.hash_lock, "Invalid secret");
+        }
         
         assert!(
             matches!(swap.status, SwapStatus::Locked),
@@ -156,15 +196,55 @@ impl SwapContract {
         
         let amount_yocto: u128 = swap.amount.parse().expect("Invalid amount");
         let fee_yocto = (amount_yocto * self.fee_percentage as u128) / 10000;
-        let payout = NearToken::from_yoctonear(amount_yocto - fee_yocto);
+        let payout_yocto = amount_yocto - fee_yocto;
         
         env::log_str(&format!(
-            "Swap completed: {} | Secret revealed: {} | Payout: {}",
-            swap_id, secret, payout
+            "Swap completed: {} | Fee: {} | Payout: {}",
+            swap_id, fee_yocto, payout_yocto
         ));
         
+        // Transfer to participant
         let participant: AccountId = swap.participant.parse().expect("Invalid participant");
+        let payout = NearToken::from_yoctonear(payout_yocto);
+        
+        // Transfer fee to fee recipient
+        if fee_yocto > 0 {
+            let fee = NearToken::from_yoctonear(fee_yocto);
+            Promise::new(self.fee_recipient.clone()).transfer(fee);
+        }
+        
         Promise::new(participant).transfer(payout)
+    }
+
+    // Oracle submits Poseidon hash verification
+    pub fn submit_oracle_verification(
+        &mut self,
+        swap_id: String,
+        poseidon_hash: String,
+        secret_matches: bool,
+    ) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.oracle_account,
+            "Only oracle can verify"
+        );
+        
+        let swap = self.swaps.get(&swap_id).expect("Swap not found");
+        assert_eq!(swap.hash_algorithm, HashAlgorithm::Poseidon, "Not a Poseidon swap");
+        
+        let verification = PoseidonVerification {
+            swap_id: swap_id.clone(),
+            poseidon_hash,
+            verified: secret_matches,
+            verified_at: Some(env::block_timestamp()),
+        };
+        
+        self.oracle_verifications.insert(&swap_id, &verification);
+        
+        env::log_str(&format!(
+            "Oracle verification submitted: {} | Verified: {}",
+            swap_id, secret_matches
+        ));
     }
 
     pub fn refund_swap(&mut self, swap_id: String) -> Promise {
@@ -199,6 +279,10 @@ impl SwapContract {
         self.swaps.get(&swap_id)
     }
     
+    pub fn get_oracle_verification(&self, swap_id: String) -> Option<PoseidonVerification> {
+        self.oracle_verifications.get(&swap_id)
+    }
+    
     pub fn get_swaps_by_initiator(&self, account_id: AccountId) -> Vec<AtomicSwap> {
         self.swaps_by_initiator
             .get(&account_id)
@@ -221,6 +305,16 @@ impl SwapContract {
         assert_eq!(env::predecessor_account_id(), self.owner, "Only owner");
         assert!(fee_percentage <= 1000, "Fee cannot exceed 10%");
         self.fee_percentage = fee_percentage;
+    }
+
+    pub fn set_fee_recipient(&mut self, fee_recipient: AccountId) {
+        assert_eq!(env::predecessor_account_id(), self.owner, "Only owner");
+        self.fee_recipient = fee_recipient;
+    }
+
+    pub fn set_oracle_account(&mut self, oracle_account: AccountId) {
+        assert_eq!(env::predecessor_account_id(), self.owner, "Only owner");
+        self.oracle_account = oracle_account;
     }
 
     fn hash_secret(&self, secret: &str) -> String {
