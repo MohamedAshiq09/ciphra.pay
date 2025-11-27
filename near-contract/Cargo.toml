@@ -1,7 +1,0 @@
-[workspace]
-members = [
-    "swap-contract",
-    "escrow-contract"
-]
-
-resolver = "2"
