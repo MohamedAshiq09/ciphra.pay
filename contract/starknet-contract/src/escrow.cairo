@@ -5,7 +5,7 @@ use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
 #[starknet::interface]
-trait IEscrow<TContractState> {
+pub trait IEscrow<TContractState> {
     fn create_escrow(
         ref self: TContractState,
         escrow_id: felt252,
@@ -30,17 +30,17 @@ trait IEscrow<TContractState> {
     ) -> EscrowDetails;
 }
 
-#[derive(Drop, Serde, starknet::Store)]
-struct EscrowDetails {
-    depositor: ContractAddress,
-    beneficiary: ContractAddress,
-    amount: u256,
-    release_time: u64,
-    status: EscrowStatus,
+#[derive(Drop, Serde, starknet::Store, Copy)]
+pub struct EscrowDetails {
+    pub depositor: ContractAddress,
+    pub beneficiary: ContractAddress,
+    pub amount: u256,
+    pub release_time: u64,
+    pub status: EscrowStatus,
 }
 
-#[derive(Drop, Serde, starknet::Store, PartialEq)]
-enum EscrowStatus {
+#[derive(Drop, Serde, starknet::Store, PartialEq, Copy)]
+pub enum EscrowStatus {
     Empty,
     Active,
     Released,
@@ -111,17 +111,11 @@ mod Escrow {
             let caller = get_caller_address();
             let current_time = get_block_timestamp();
             
-            // Validate escrow doesn't exist
             let existing_escrow = self.escrows.read(escrow_id);
             assert(existing_escrow.status == EscrowStatus::Empty, 'Escrow already exists');
-            
-            // Validate release time is in the future
             assert(release_time > current_time, 'Release time must be future');
-            
-            // Validate amount is greater than zero
             assert(amount > 0, 'Amount must be positive');
             
-            // Store escrow details
             let escrow_details = EscrowDetails {
                 depositor: caller,
                 beneficiary,
@@ -132,7 +126,6 @@ mod Escrow {
             
             self.escrows.write(escrow_id, escrow_details);
             
-            // Emit event
             self.emit(EscrowCreated {
                 escrow_id,
                 depositor: caller,
@@ -149,13 +142,9 @@ mod Escrow {
             let escrow = self.escrows.read(escrow_id);
             let current_time = get_block_timestamp();
             
-            // Validate escrow is active
             assert(escrow.status == EscrowStatus::Active, 'Escrow not active');
-            
-            // Validate release time has passed
             assert(current_time >= escrow.release_time, 'Release time not reached');
             
-            // Update escrow status
             let updated_escrow = EscrowDetails {
                 depositor: escrow.depositor,
                 beneficiary: escrow.beneficiary,
@@ -165,7 +154,6 @@ mod Escrow {
             };
             self.escrows.write(escrow_id, updated_escrow);
             
-            // Emit event
             self.emit(EscrowReleased {
                 escrow_id,
                 beneficiary: escrow.beneficiary,
@@ -181,16 +169,10 @@ mod Escrow {
             let caller = get_caller_address();
             let current_time = get_block_timestamp();
             
-            // Validate escrow is active
             assert(escrow.status == EscrowStatus::Active, 'Escrow not active');
-            
-            // Validate caller is depositor
             assert(caller == escrow.depositor, 'Only depositor can cancel');
-            
-            // Validate release time has passed (can only cancel after expiry)
             assert(current_time >= escrow.release_time, 'Cannot cancel before expiry');
             
-            // Update escrow status
             let updated_escrow = EscrowDetails {
                 depositor: escrow.depositor,
                 beneficiary: escrow.beneficiary,
@@ -200,7 +182,6 @@ mod Escrow {
             };
             self.escrows.write(escrow_id, updated_escrow);
             
-            // Emit event
             self.emit(EscrowCancelled {
                 escrow_id,
                 depositor: escrow.depositor,

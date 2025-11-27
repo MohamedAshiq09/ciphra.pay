@@ -5,7 +5,7 @@ use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess};
 
 #[starknet::interface]
-trait IERC20<TContractState> {
+pub trait IERC20<TContractState> {
     fn transfer(ref self: TContractState, recipient: ContractAddress, amount: u256) -> bool;
     fn transfer_from(
         ref self: TContractState,
@@ -16,7 +16,7 @@ trait IERC20<TContractState> {
 }
 
 #[starknet::interface]
-trait IP2PTransfer<TContractState> {
+pub trait IP2PTransfer<TContractState> {
     fn send_direct(
         ref self: TContractState,
         transfer_id: felt252,
@@ -49,42 +49,42 @@ trait IP2PTransfer<TContractState> {
 }
 
 #[derive(Drop, Serde, starknet::Store, PartialEq, Copy)]
-enum TransferType {
+pub enum TransferType {
     Direct,
     Shielded,
 }
 
 #[derive(Drop, Serde, starknet::Store, PartialEq, Copy)]
-enum TransferStatus {
+pub enum TransferStatus {
     Pending,
     Completed,
     Failed,
 }
 
 #[derive(Drop, Serde, starknet::Store, Copy)]
-struct TransferDetails {
-    transfer_id: felt252,
-    sender: ContractAddress,
-    recipient: ContractAddress,
-    amount: u256,
-    token_address: ContractAddress,
-    transfer_type: TransferType,
-    status: TransferStatus,
-    commitment: felt252,
-    nullifier: felt252,
-    memo: felt252,
-    timestamp: u64,
+pub struct TransferDetails {
+    pub transfer_id: felt252,
+    pub sender: ContractAddress,
+    pub recipient: ContractAddress,
+    pub amount: u256,
+    pub token_address: ContractAddress,
+    pub transfer_type: TransferType,
+    pub status: TransferStatus,
+    pub commitment: felt252,
+    pub nullifier: felt252,
+    pub memo: felt252,
+    pub timestamp: u64,
 }
 
 #[derive(Drop, Serde, starknet::Store, Copy)]
-struct ShieldedNote {
-    note_id: felt252,
-    commitment: felt252,
-    amount: u256,
-    token_address: ContractAddress,
-    spent: bool,
-    nullifier: felt252,
-    created_at: u64,
+pub struct ShieldedNote {
+    pub note_id: felt252,
+    pub commitment: felt252,
+    pub amount: u256,
+    pub token_address: ContractAddress,
+    pub spent: bool,
+    pub nullifier: felt252,
+    pub created_at: u64,
 }
 
 #[starknet::contract]
@@ -148,7 +148,7 @@ mod P2PTransfer {
     #[constructor]
     fn constructor(ref self: ContractState, owner: ContractAddress) {
         self.owner.write(owner);
-        self.fee_percentage.write(10); // 0.1% for direct transfers
+        self.fee_percentage.write(10);
         self.fee_recipient.write(owner);
     }
 
@@ -166,22 +166,18 @@ mod P2PTransfer {
             let this_contract = get_contract_address();
             let current_time = get_block_timestamp();
             
-            // Validate
             let existing = self.transfers.read(transfer_id);
             assert(existing.status == TransferStatus::Pending, 'Transfer ID exists');
             assert(amount > 0, 'Amount must be positive');
             
-            // Calculate fee
             let fee_percentage = self.fee_percentage.read();
             let fee_amount = (amount * fee_percentage.into()) / 10000;
             let payout_amount = amount - fee_amount;
             
-            // Transfer tokens from sender to contract
             let token = IERC20Dispatcher { contract_address: token_address };
             let success = token.transfer_from(sender, this_contract, amount);
             assert(success, 'Token transfer failed');
             
-            // Store transfer
             let transfer = TransferDetails {
                 transfer_id,
                 sender,
@@ -197,11 +193,9 @@ mod P2PTransfer {
             };
             self.transfers.write(transfer_id, transfer);
             
-            // Send to recipient
             let payout_success = token.transfer(recipient, payout_amount);
             assert(payout_success, 'Payout failed');
             
-            // Send fee
             if fee_amount > 0 {
                 let fee_recipient = self.fee_recipient.read();
                 let fee_success = token.transfer(fee_recipient, fee_amount);
@@ -229,18 +223,15 @@ mod P2PTransfer {
             let this_contract = get_contract_address();
             let current_time = get_block_timestamp();
             
-            // Validate
             let existing = self.shielded_pool.read(note_id);
             assert(existing.note_id == 0, 'Note ID exists');
             assert(amount > 0, 'Amount must be positive');
             assert(commitment != 0, 'Invalid commitment');
             
-            // Transfer tokens to contract
             let token = IERC20Dispatcher { contract_address: token_address };
             let success = token.transfer_from(sender, this_contract, amount);
             assert(success, 'Token transfer failed');
             
-            // Create note
             let note = ShieldedNote {
                 note_id,
                 commitment,
@@ -270,23 +261,17 @@ mod P2PTransfer {
         ) {
             let current_time = get_block_timestamp();
             
-            // Validate nullifier not used
             assert(!self.used_nullifiers.read(nullifier), 'Nullifier already used');
             
-            // Get note
             let note = self.shielded_pool.read(note_id);
             assert(note.note_id != 0, 'Note not found');
             assert(!note.spent, 'Note already spent');
-            
-            // In production: Verify ZK proof
             assert(proof != 0, 'Invalid proof');
             
-            // Calculate fee
             let fee_percentage = self.fee_percentage.read();
             let fee_amount = (note.amount * fee_percentage.into()) / 10000;
             let payout_amount = note.amount - fee_amount;
             
-            // Mark note as spent
             let updated_note = ShieldedNote {
                 note_id: note.note_id,
                 commitment: note.commitment,
@@ -298,13 +283,11 @@ mod P2PTransfer {
             };
             self.shielded_pool.write(note_id, updated_note);
             
-            // Mark nullifier as used
             self.used_nullifiers.write(nullifier, true);
             
-            // Create transfer record
             let transfer = TransferDetails {
                 transfer_id,
-                sender: starknet::contract_address_const::<0>(), // Hidden
+                sender: starknet::contract_address_const::<0>(),
                 recipient,
                 amount: payout_amount,
                 token_address: note.token_address,
@@ -317,12 +300,10 @@ mod P2PTransfer {
             };
             self.transfers.write(transfer_id, transfer);
             
-            // Transfer tokens
             let token = IERC20Dispatcher { contract_address: note.token_address };
             let success = token.transfer(recipient, payout_amount);
             assert(success, 'Payout failed');
             
-            // Send fee
             if fee_amount > 0 {
                 let fee_recipient = self.fee_recipient.read();
                 let fee_success = token.transfer(fee_recipient, fee_amount);
