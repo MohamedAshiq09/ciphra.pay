@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "swap-contract",
-    "escrow-contract"
+    "escrow-contract",
+    "p2p-transfer"
 ]
 
 resolver = "2"
