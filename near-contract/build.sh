@@ -2,29 +2,29 @@
 
 set -e
 
-echo "🔨 Building NEAR Contracts..."
+echo "🔨 Building NEAR Contracts with cargo-near..."
 echo ""
 
 # Build swap contract
 echo "📦 Building swap-contract..."
 cd swap-contract
-cargo build --target wasm32-unknown-unknown --release
+cargo near build
 cd ..
 
 # Build escrow contract
 echo "📦 Building escrow-contract..."
 cd escrow-contract
-cargo build --target wasm32-unknown-unknown --release
+cargo near build
 cd ..
 
 # Create output directory
 mkdir -p out
 
-# Copy WASM files to output directory
+# Copy WASM files (cargo-near puts them in target/near/)
 echo ""
 echo "📋 Copying WASM files..."
-cp swap-contract/target/wasm32-unknown-unknown/release/swap_contract.wasm out/
-cp escrow-contract/target/wasm32-unknown-unknown/release/escrow_contract.wasm out/
+cp swap-contract/target/near/swap_contract.wasm out/
+cp escrow-contract/target/near/escrow_contract.wasm out/
 
 echo ""
 echo "✅ Build complete!"

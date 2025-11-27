@@ -1,7 +1,6 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap};
-use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, Promise};
+use near_sdk::{env, near_bindgen, AccountId, NearToken, BorshStorageKey, PanicOnDefault, Promise};
 use near_sdk::serde::{Deserialize, Serialize};
 
 #[derive(BorshSerialize, BorshStorageKey)]
@@ -27,7 +26,7 @@ pub struct AtomicSwap {
     pub swap_id: String,
     pub initiator: AccountId,
     pub participant: AccountId,
-    pub amount: Balance,
+    pub amount: NearToken,
     pub hash_lock: String,           // Hash of the secret
     pub time_lock: u64,              // Timestamp when refund becomes available
     pub status: SwapStatus,
@@ -80,7 +79,7 @@ impl SwapContract {
         let amount = env::attached_deposit();
         
         // Validations
-        assert!(amount > 0, "Must attach NEAR tokens");
+        assert!(amount > NearToken::from_yoctonear(0), "Must attach NEAR tokens");
         assert!(self.swaps.get(&swap_id).is_none(), "Swap ID already exists");
         assert!(
             time_lock_duration >= self.min_time_lock && time_lock_duration <= self.max_time_lock,
@@ -161,8 +160,9 @@ impl SwapContract {
         self.swaps.insert(&swap_id, &swap);
         
         // Calculate fee
-        let fee = (swap.amount * self.fee_percentage as u128) / 10000;
-        let payout = swap.amount - fee;
+        let amount_yocto = swap.amount.as_yoctonear();
+        let fee_yocto = (amount_yocto * self.fee_percentage as u128) / 10000;
+        let payout = NearToken::from_yoctonear(amount_yocto - fee_yocto);
         
         env::log_str(&format!(
             "Swap completed: {} | Secret revealed: {} | Payout: {}",

@@ -1,7 +1,6 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
-use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, Promise};
+use near_sdk::{env, near_bindgen, AccountId, NearToken, BorshStorageKey, PanicOnDefault, Promise};
 use near_sdk::serde::{Deserialize, Serialize};
 
 #[derive(BorshSerialize, BorshStorageKey)]
@@ -19,7 +18,7 @@ pub enum EscrowStatus {
     Refunded,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct CrossChainProof {
     pub chain_id: String,
@@ -36,7 +35,7 @@ pub struct Escrow {
     pub escrow_id: String,
     pub depositor: AccountId,
     pub beneficiary: AccountId,
-    pub amount: Balance,
+    pub amount: NearToken,
     pub release_time: u64,
     pub status: EscrowStatus,
     pub cross_chain_proof: Option<CrossChainProof>,
@@ -80,7 +79,7 @@ impl EscrowContract {
         let depositor = env::predecessor_account_id();
         let amount = env::attached_deposit();
         
-        assert!(amount > 0, "Must attach NEAR tokens");
+        assert!(amount > NearToken::from_yoctonear(0), "Must attach NEAR tokens");
         assert!(self.escrows.get(&escrow_id).is_none(), "Escrow ID already exists");
         assert!(release_time > env::block_timestamp(), "Release time must be in future");
         

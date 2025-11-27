@@ -1,42 +1,70 @@
 #!/bin/bash
 
-# Deployment script for NEAR contracts
-
 set -e
 
-NETWORK=${1:-testnet}
+export NEAR_ENV=testnet
+ACCOUNT_ID="ashiq09.testnet"
 
-if [ "$NETWORK" != "testnet" ] && [ "$NETWORK" != "mainnet" ]; then
-    echo "Usage: ./deploy.sh [testnet|mainnet]"
-    exit 1
-fi
-
-echo "🚀 Deploying contracts to $NETWORK..."
+echo "🚀 Deploying contracts to testnet..."
 
 # Build contracts first
+echo "🔨 Building NEAR Contracts..."
 ./build.sh
 
-# Create deployment directory
-mkdir -p deployment/$NETWORK
+echo ""
+echo "================================================"
+echo "📦 Deploying Ciphra.pay Contracts"
+echo "================================================"
+echo "Account: $ACCOUNT_ID"
+echo ""
 
-# Deploy swap contract
-echo "Deploying swap contract..."
-SWAP_ACCOUNT="swap-contract-$(date +%s).${NETWORK}"
-near create-account $SWAP_ACCOUNT --masterAccount your-account.${NETWORK} --initialBalance 10
-near deploy --accountId $SWAP_ACCOUNT --wasmFile out/swap_contract.wasm
+# Wait for network sync
+echo "⏳ Waiting for network sync..."
+sleep 3
 
-# Save swap contract address
-echo $SWAP_ACCOUNT > deployment/$NETWORK/swap_contract_address.txt
+# Deploy swap contract (FIXED SYNTAX)
+echo "📦 Deploying Swap Contract..."
+near deploy \
+  swap.$ACCOUNT_ID \
+  out/swap_contract.wasm \
+  --initFunction new \
+  --initArgs "{\"owner\": \"$ACCOUNT_ID\"}"
 
-# Deploy escrow contract
-echo "Deploying escrow contract..."
-ESCROW_ACCOUNT="escrow-contract-$(date +%s).${NETWORK}"
-near create-account $ESCROW_ACCOUNT --masterAccount your-account.${NETWORK} --initialBalance 10
-near deploy --accountId $ESCROW_ACCOUNT --wasmFile out/escrow_contract.wasm
+echo ""
+echo "✅ Swap Contract Deployed!"
+echo "   Address: swap.$ACCOUNT_ID"
+echo ""
 
-# Save escrow contract address
-echo $ESCROW_ACCOUNT > deployment/$NETWORK/escrow_contract_address.txt
+# Wait between deployments
+sleep 2
 
-echo "✅ Deployment complete!"
-echo "Swap contract: $SWAP_ACCOUNT"
-echo "Escrow contract: $ESCROW_ACCOUNT"
+# Deploy escrow contract (FIXED SYNTAX)
+echo "📦 Deploying Escrow Contract..."
+near deploy \
+  escrow.$ACCOUNT_ID \
+  out/escrow_contract.wasm \
+  --initFunction new \
+  --initArgs "{\"owner\": \"$ACCOUNT_ID\"}"
+
+echo ""
+echo "✅ Escrow Contract Deployed!"
+echo "   Address: escrow.$ACCOUNT_ID"
+echo ""
+
+# Save deployment addresses
+mkdir -p deployment/testnet
+echo "swap.$ACCOUNT_ID" > deployment/testnet/swap_contract_address.txt
+echo "escrow.$ACCOUNT_ID" > deployment/testnet/escrow_contract_address.txt
+
+echo "================================================"
+echo "🎉 Deployment Complete!"
+echo "================================================"
+echo "Swap Contract:   swap.$ACCOUNT_ID"
+echo "Escrow Contract: escrow.$ACCOUNT_ID"
+echo "================================================"
+
+# Verify deployments
+echo ""
+echo "🔍 Verifying deployments..."
+near state swap.$ACCOUNT_ID
+near state escrow.$ACCOUNT_ID
