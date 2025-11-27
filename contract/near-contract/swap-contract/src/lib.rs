@@ -13,7 +13,7 @@ pub enum StorageKey {
     OracleVerifications,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum HashAlgorithm {
     SHA256,
