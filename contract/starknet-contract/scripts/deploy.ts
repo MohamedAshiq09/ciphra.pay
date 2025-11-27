@@ -153,6 +153,12 @@ class StarknetDeployer {
             this.account.address
         ]);
 
+        // ------- P2PTransfer (NEW) -------
+        const p2pHash = await this.declareContract("P2PTransfer");
+        const p2pAddr = await this.deployContract("P2PTransfer", p2pHash, [
+            this.account.address
+        ]);
+
         // Save output
         this.saveDeploymentResults();
 
@@ -162,12 +168,14 @@ class StarknetDeployer {
         console.log("Atomic Swap:      ", atomicAddr);
         console.log("Escrow:           ", escrowAddr);
         console.log("Bridge Connector: ", bridgeAddr);
+        console.log("P2P Transfer:     ", p2pAddr);
         console.log("================================================");
 
         return {
             atomicSwap: atomicAddr,
             escrow: escrowAddr,
-            bridgeConnector: bridgeAddr
+            bridgeConnector: bridgeAddr,
+            p2pTransfer: p2pAddr
         };
     }
 
