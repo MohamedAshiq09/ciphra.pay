@@ -1,68 +1,102 @@
-import { createPXEClient, waitForPXE } from "@aztec/aztec.js";
 import { getInitialTestAccountsWallets } from "@aztec/accounts/testing";
+import { createPXEService } from "@aztec/pxe/server";
+import { createAztecNodeClient } from "@aztec/aztec.js/node";
+import { getPXEServiceConfig } from "@aztec/pxe/config";
 import { PrivateAtomicSwapContract } from "../src/artifacts/PrivateAtomicSwap.js";
+import type { AztecAddress, PXE, AztecNode } from "@aztec/aztec.js";
+import type { AccountWallet } from "@aztec/aztec.js/wallet";
 
 /**
- * Deploy PrivateAtomicSwap contract to Aztec sandbox/devnet
+ * Deploy PrivateAtomicSwap V3 contract to Aztec
+ * Works with both sandbox and testnet (set PXE_URL env var)
  */
-async function main() {
-    console.log("🚀 Deploying PrivateAtomicSwap contract...\n");
+async function main(): Promise<string> {
+    console.log("🚀 Deploying PrivateAtomicSwap V3 contract...\n");
 
-    // Connect to PXE
-    const pxeUrl = process.env.PXE_URL || "http://localhost:8080";
-    console.log(`📡 Connecting to PXE at ${pxeUrl}...`);
-    const pxe = createPXEClient(pxeUrl);
-    await waitForPXE(pxe);
-    console.log("✅ Connected to PXE\n");
+    try {
+        // Connect to Aztec Node
+        const nodeUrl: string = process.env.PXE_URL || "http://localhost:8080";
+        console.log(`📡 Connecting to Aztec Node at ${nodeUrl}...`);
 
-    // Get deployer wallet
-    const wallets = await getInitialTestAccountsWallets(pxe);
-    const deployer = wallets[0];
-    console.log("👤 Deployer address:", deployer.getAddress().toString());
+        const node: AztecNode = createAztecNodeClient(nodeUrl);
 
-    // Contract parameters
-    const owner = deployer.getAddress();
+        // Create PXE
+        console.log("⚙️  Setting up PXE...");
+        const config = getPXEServiceConfig();
+        const pxe: PXE = await createPXEService(node, config);
 
-    console.log("\n📝 Contract Parameters:");
-    console.log("   Owner:", owner.toString());
-    console.log("   Contract: PrivateAtomicSwap\n");
+        console.log("✅ Connected to PXE\n");
 
-    // Deploy contract
-    console.log("⏳ Deploying contract...");
-    const contract = await PrivateAtomicSwapContract.deploy(
-        deployer,
-        owner
-    )
-        .send()
+        // Get test account (pre-funded with Fee Juice on sandbox)
+        console.log("👤 Getting test account...");
+        const wallets: AccountWallet[] = await getInitialTestAccountsWallets(pxe);
+        const wallet: AccountWallet = wallets[0];
+
+        console.log("✅ Using account:", wallet.getAddress().toString());
+        console.log();
+
+        // Contract constructor parameters
+        const owner: AztecAddress = wallet.getAddress();
+        const feeRecipient: AztecAddress = wallet.getAddress();
+        const initialFeePercentage: number = 30; // 0.3% (30 basis points)
+
+        console.log("📝 Deployment Parameters:");
+        console.log("   Owner:", owner.toString());
+        console.log("   Fee Recipient:", feeRecipient.toString());
+        console.log("   Initial Fee:", initialFeePercentage, "basis points (0.3%)");
+        console.log();
+
+        // Deploy contract
+        console.log("⏳ Deploying PrivateAtomicSwap V3...");
+        console.log("   (This may take a few minutes with proving...)");
+
+        const contract = await PrivateAtomicSwapContract.deploy(
+            wallet,
+            owner,
+            feeRecipient,
+            initialFeePercentage
+        )
+        .send({ from: wallet.getAddress() })
         .deployed();
 
-    console.log("\n✅ Contract deployed successfully!");
-    console.log("📍 Contract Address:", contract.address.toString());
-    console.log("\n🎉 Deployment complete!\n");
+        console.log();
+        console.log("✅ Contract deployed successfully!");
+        console.log("📍 Contract Address:", contract.address.toString());
+        console.log();
 
-    // Save deployment info
-    const deploymentInfo = {
-        contractAddress: contract.address.toString(),
-        deployer: deployer.getAddress().toString(),
-        owner: owner.toString(),
-        deployedAt: new Date().toISOString(),
-        network: process.env.AZTEC_ENV || "sandbox",
-        contractName: "PrivateAtomicSwap",
-        version: "1.0.0"
-    };
+        // Verify deployment
+        console.log("🔍 Verifying deployment...");
+        const feePercentage = await contract.methods.get_fee_percentage().simulate();
+        const totalSwaps = await contract.methods.get_total_swaps().simulate();
 
-    console.log("📋 Deployment Info:");
-    console.log(JSON.stringify(deploymentInfo, null, 2));
-    
-    console.log("\n📝 Next Steps:");
-    console.log("1. Save the contract address for your backend");
-    console.log("2. Test the contract with initiate_private_swap");
-    console.log("3. Integrate with your cross-chain backend\n");
+        console.log("   Fee Percentage:", feePercentage.toString(), "basis points");
+        console.log("   Total Swaps:", totalSwaps.toString());
+        console.log();
+
+        console.log("🎉 Deployment Complete!");
+        console.log();
+        console.log("📋 Next Steps:");
+        console.log("   1. Save contract address:", contract.address.toString());
+        console.log("   2. Update your backend with this address");
+        console.log("   3. Test with initiate_private_swap");
+        console.log();
+
+        return contract.address.toString();
+    } catch (error: any) {
+        console.error("❌ Deployment failed:", error.message);
+        if (error.stack) {
+            console.error("\nStack trace:", error.stack);
+        }
+        throw error;
+    }
 }
 
 main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error("❌ Deployment failed:", error);
+    .then((address: string) => {
+        console.log("✅ Success! Contract at:", address);
+        process.exit(0);
+    })
+    .catch((error: Error) => {
+        console.error("❌ Error:", error.message);
         process.exit(1);
     });
