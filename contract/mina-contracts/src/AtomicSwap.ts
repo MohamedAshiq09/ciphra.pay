@@ -1,4 +1,3 @@
-
 import {
   SmartContract,
   state,
@@ -62,7 +61,7 @@ export class CrossChainProof extends Struct({
   blockNumber: UInt64,
   proofData: Field,
   verified: Bool,
-}) {}
+}) { }
 
 // ============================================================================
 // MAIN CONTRACT
@@ -281,6 +280,8 @@ export class AtomicSwapContract extends SmartContract {
     this.oraclePublicKey.set(newOracle);
   }
 }
+
+
 
 // ============================================================================
 // HELPER FUNCTIONS
