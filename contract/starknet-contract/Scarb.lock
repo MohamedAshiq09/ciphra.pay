@@ -5,18 +5,20 @@ version = 1
 name = "ciphra_pay"
 version = "0.2.0"
 dependencies = [
- "snforge_std",
+ "snforge_std_deprecated",
 ]
 
 [[package]]
-name = "snforge_scarb_plugin"
-version = "0.31.0"
-source = "git+https://github.com/foundry-rs/starknet-foundry?tag=v0.31.0#72ea785ca354e9e506de3e5d687da9fb2c1b3c67"
+name = "snforge_scarb_plugin_deprecated"
+version = "0.53.0"
+source = "registry+https://scarbs.xyz/"
+checksum = "sha256:e8ddda6c26a551fd41af35b21e2dd8b6272e6ff83b05691fc032dd70fd354287"
 
 [[package]]
-name = "snforge_std"
-version = "0.31.0"
-source = "git+https://github.com/foundry-rs/starknet-foundry?tag=v0.31.0#72ea785ca354e9e506de3e5d687da9fb2c1b3c67"
+name = "snforge_std_deprecated"
+version = "0.53.0"
+source = "registry+https://scarbs.xyz/"
+checksum = "sha256:3a4361bec5a9462a1b673ded0c6edffff2860a0867bf6e3af612454c6f0b4cc3"
 dependencies = [
- "snforge_scarb_plugin",
+ "snforge_scarb_plugin_deprecated",
 ]

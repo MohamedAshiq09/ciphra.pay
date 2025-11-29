@@ -135,10 +135,18 @@ class StarknetDeployer {
         console.log("Network:", process.env.STARKNET_RPC_URL);
         console.log("================================================\n");
 
-        // ------- AtomicSwap -------
+        // ------- AtomicSwap (Basic Version) -------
         const atomicHash = await this.declareContract("AtomicSwap");
         const atomicAddr = await this.deployContract("AtomicSwap", atomicHash, [
             this.account.address
+        ]);
+
+        // ------- AtomicSwapV2 (NEW ENHANCED VERSION) -------
+        console.log("\n🎯 Deploying Enhanced AtomicSwapV2...");
+        const atomicV2Hash = await this.declareContract("AtomicSwapV2");
+        const atomicV2Addr = await this.deployContract("AtomicSwapV2", atomicV2Hash, [
+            this.account.address,  // owner
+            this.account.address   // fee_recipient (you can change this if needed)
         ]);
 
         // ------- Escrow -------
@@ -153,7 +161,7 @@ class StarknetDeployer {
             this.account.address
         ]);
 
-        // ------- P2PTransfer (NEW) -------
+        // ------- P2PTransfer -------
         const p2pHash = await this.declareContract("P2PTransfer");
         const p2pAddr = await this.deployContract("P2PTransfer", p2pHash, [
             this.account.address
@@ -165,14 +173,16 @@ class StarknetDeployer {
         console.log("\n================================================");
         console.log("🎉 Deployment Complete!");
         console.log("================================================");
-        console.log("Atomic Swap:      ", atomicAddr);
-        console.log("Escrow:           ", escrowAddr);
-        console.log("Bridge Connector: ", bridgeAddr);
-        console.log("P2P Transfer:     ", p2pAddr);
+        console.log("AtomicSwap (Basic): ", atomicAddr);
+        console.log("AtomicSwapV2 (NEW): ", atomicV2Addr);  // NEW!
+        console.log("Escrow:             ", escrowAddr);
+        console.log("Bridge Connector:   ", bridgeAddr);
+        console.log("P2P Transfer:       ", p2pAddr);
         console.log("================================================");
 
         return {
             atomicSwap: atomicAddr,
+            atomicSwapV2: atomicV2Addr,  // NEW!
             escrow: escrowAddr,
             bridgeConnector: bridgeAddr,
             p2pTransfer: p2pAddr
