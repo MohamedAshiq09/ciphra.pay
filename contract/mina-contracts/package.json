@@ -5,8 +5,8 @@
   "scripts": {
     "build": "tsc",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "deploy": "node build/src/deploy.js",
-    "interact": "node build/src/interact.js"
+    "deploy": "tsx src/deploy.ts",
+    "interact": "tsx src/interact.ts"
   },
   "devDependencies": {
     "@types/jest": "^29.5.5",
@@ -15,6 +15,7 @@
     "prettier": "^3.0.3",
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.1",
+    "tsx": "^4.7.0",
     "typescript": "^5.2.2"
   },
   "dependencies": {
