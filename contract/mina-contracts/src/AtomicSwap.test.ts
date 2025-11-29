@@ -1,10 +1,3 @@
-/**
- * ============================================================================
- * COMPREHENSIVE TESTS FOR MINA ATOMIC SWAP CONTRACT
- * Tests: Zcash ↔ Mina, NEAR ↔ Mina, Starknet ↔ Mina
- * ============================================================================
- */
-
 import {
   Field,
   Mina,
@@ -24,6 +17,7 @@ import {
   SwapDetails,
   SwapStatus,
   CrossChainProof,
+  ContractConfig,
   hashSecret,
   encodeChainName,
 } from './AtomicSwap';
@@ -40,6 +34,7 @@ describe('Mina Atomic Swap Contract', () => {
   let zkApp: AtomicSwapContract;
   let Local: any;
   let merkleMap: MerkleMap;
+  let config: ContractConfig;
 
   beforeAll(async () => {
     // Setup local blockchain
@@ -63,6 +58,13 @@ describe('Mina Atomic Swap Contract', () => {
 
     // Initialize Merkle map
     merkleMap = new MerkleMap();
+
+    // Initialize config (will be set after deployment)
+    config = new ContractConfig({
+      owner: deployerAccount,
+      feeRecipient: deployerAccount,
+      oraclePublicKey: deployerAccount,
+    });
   });
 
   // ==========================================================================
@@ -78,8 +80,9 @@ describe('Mina Atomic Swap Contract', () => {
       await txn.prove();
       await txn.sign([deployerKey, zkAppPrivateKey]).send();
 
-      const owner = zkApp.owner.get();
-      expect(owner).toEqual(deployerAccount);
+      // Verify config hash is set
+      const configHash = zkApp.configHash.get();
+      expect(configHash).toEqual(config.hash());
 
       const feePercentage = zkApp.feePercentage.get();
       expect(feePercentage).toEqual(UInt64.from(30)); // 0.3%
@@ -292,7 +295,7 @@ describe('Mina Atomic Swap Contract', () => {
       const swapHash = swapDetails.hash();
       merkleMap.set(swapId, swapHash);
 
-      // Complete swap
+      // Complete swap (NOW WITH CONFIG!)
       const completeWitness = merkleMap.getWitness(swapId);
       const crossChainProof = new CrossChainProof({
         chainId: Field(1), // zcash
@@ -308,7 +311,8 @@ describe('Mina Atomic Swap Contract', () => {
           secret,
           swapDetails,
           completeWitness,
-          crossChainProof
+          crossChainProof,
+          config // ← Added config parameter!
         );
       });
       await txn.prove();
@@ -373,7 +377,8 @@ describe('Mina Atomic Swap Contract', () => {
               blockNumber: UInt64.zero,
               proofData: Field(0),
               verified: Bool(false),
-            })
+            }),
+            config // ← Added config parameter!
           );
         });
         await txn.prove();
@@ -452,7 +457,7 @@ describe('Mina Atomic Swap Contract', () => {
       const signature = Signature.create(deployerKey, [newFee.value]);
 
       const txn = await Mina.transaction(deployerAccount, async () => {
-        zkApp.setFeePercentage(newFee, signature);
+        zkApp.setFeePercentage(newFee, config, signature); // ← Added config parameter!
       });
       await txn.prove();
       await txn.sign([deployerKey]).send();
@@ -467,11 +472,38 @@ describe('Mina Atomic Swap Contract', () => {
 
       await expect(async () => {
         const txn = await Mina.transaction(senderAccount, async () => {
-          zkApp.setFeePercentage(newFee, signature);
+          zkApp.setFeePercentage(newFee, config, signature); // ← Added config parameter!
         });
         await txn.prove();
         await txn.sign([senderKey]).send();
       }).rejects.toThrow();
+    });
+
+    it('should update contract config', async () => {
+      const newConfig = new ContractConfig({
+        owner: deployerAccount,
+        feeRecipient: senderAccount, // Changed!
+        oraclePublicKey: deployerAccount,
+      });
+
+      const configFields = [
+        ...newConfig.owner.toFields(),
+        ...newConfig.feeRecipient.toFields(),
+        ...newConfig.oraclePublicKey.toFields(),
+      ];
+      const signature = Signature.create(deployerKey, configFields);
+
+      const txn = await Mina.transaction(deployerAccount, async () => {
+        zkApp.updateConfig(newConfig, signature);
+      });
+      await txn.prove();
+      await txn.sign([deployerKey]).send();
+
+      const updatedConfigHash = zkApp.configHash.get();
+      expect(updatedConfigHash).toEqual(newConfig.hash());
+
+      // Update our local config reference
+      config = newConfig;
     });
   });
 
@@ -499,7 +531,7 @@ describe('Mina Atomic Swap Contract', () => {
       const signature = Signature.create(deployerKey, proofFields);
 
       const txn = await Mina.transaction(deployerAccount, async () => {
-        zkApp.submitCrossChainProof(proof, signature);
+        zkApp.submitCrossChainProof(proof, config, signature); // ← Added config parameter!
       });
       await txn.prove();
       await txn.sign([deployerKey]).send();
