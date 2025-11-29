@@ -154,10 +154,10 @@ export class AtomicSwapContract extends SmartContract {
 
     // Initialize state
     this.swapsRoot.set(new MerkleMap().getRoot());
-    this.owner.set(this.sender);
+    this.owner.set(this.sender.getAndRequireSignature());
     this.feePercentage.set(UInt64.from(30)); // 0.3% default
-    this.feeRecipient.set(this.sender);
-    this.oraclePublicKey.set(this.sender); // Set oracle (can be updated)
+    this.feeRecipient.set(this.sender.getAndRequireSignature());
+    this.oraclePublicKey.set(this.sender.getAndRequireSignature()); // Set oracle (can be updated)
     this.minTimeLockDuration.set(UInt64.from(3600)); // 1 hour
     this.maxTimeLockDuration.set(UInt64.from(172800)); // 48 hours
   }
@@ -210,7 +210,7 @@ export class AtomicSwapContract extends SmartContract {
     // Create swap details
     const swap = new SwapDetails({
       swapId,
-      initiator: this.sender,
+      initiator: this.sender.getAndRequireSignature(),
       recipient,
       amount,
       hashLock,
@@ -230,7 +230,7 @@ export class AtomicSwapContract extends SmartContract {
     this.swapsRoot.set(newRoot);
 
     // Transfer MINA to contract (escrow)
-    const senderUpdate = this.send({ to: this.sender, amount });
+    const senderUpdate = this.send({ to: this.address, amount });
     senderUpdate.body.balanceChange.magnitude.assertEquals(amount);
 
     // Emit event
@@ -276,7 +276,7 @@ export class AtomicSwapContract extends SmartContract {
     currentTime.toUInt64().assertLessThanOrEqual(swapDetails.timeLock);
 
     // Verify caller is recipient
-    this.sender.assertEquals(swapDetails.recipient);
+    this.sender.getAndRequireSignature().assertEquals(swapDetails.recipient);
 
     // For cross-chain swaps, verify external proof (optional)
     // This is where recursive ZK magic happens!
@@ -341,7 +341,7 @@ export class AtomicSwapContract extends SmartContract {
     swapDetails.status.assertEquals(SwapStatus.Active);
 
     // Verify caller is initiator
-    this.sender.assertEquals(swapDetails.initiator);
+    this.sender.getAndRequireSignature().assertEquals(swapDetails.initiator);
 
     // Verify time lock expired
     currentTime.toUInt64().assertGreaterThan(swapDetails.timeLock);
