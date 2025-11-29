@@ -38,13 +38,13 @@ describe("Private Atomic Swap - Smoke Tests", () => {
     // Find initiate_private_swap
     const initiate = functions.find((f: any) => f.name === 'initiate_private_swap');
     expect(initiate).toBeDefined();
-    expect(initiate.parameters.length).toBe(7); // swap_id, recipient, amount, hash_lock, time_lock_duration, target_chain, target_swap_id
+    expect(initiate.parameters.length).toBe(8); // swap_id, recipient, amount, token_address, hash_lock, time_lock_duration, target_chain, target_swap_id
     console.log("✅ initiate_private_swap has correct parameter count");
 
     // Find complete_private_swap
     const complete = functions.find((f: any) => f.name === 'complete_private_swap');
     expect(complete).toBeDefined();
-    expect(complete.parameters.length).toBe(2); // swap_id, secret
+    expect(complete.parameters.length).toBe(3); // swap_id, secret, hash_type
     console.log("✅ complete_private_swap has correct parameter count");
 
     // Find refund_private_swap
