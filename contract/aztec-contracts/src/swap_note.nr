@@ -11,6 +11,7 @@ pub struct SwapNote {
     pub initiator: AztecAddress,
     pub recipient: AztecAddress,
     pub amount: Field,
+    pub token_address: AztecAddress, // Token contract address
     pub hash_lock: Field,
     pub time_lock: u64,
     pub status: u8, // 1=Active, 2=Completed, 3=Refunded
@@ -25,6 +26,7 @@ impl SwapNote {
         initiator: AztecAddress,
         recipient: AztecAddress,
         amount: Field,
+        token_address: AztecAddress,
         hash_lock: Field,
         time_lock: u64,
         target_chain: Field,
@@ -36,6 +38,7 @@ impl SwapNote {
             initiator,
             recipient,
             amount,
+            token_address,
             hash_lock,
             time_lock,
             status: 1, // Active by default

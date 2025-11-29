@@ -55,11 +55,13 @@ fn test_swap_note_creation() {
     let initiator = AztecAddress::from_field(1);
     let recipient = AztecAddress::from_field(2);
     let owner = AztecAddress::from_field(3);
+    let token_address = AztecAddress::from_field(4);
     let note = SwapNote::new(
         1, // swap_id
         initiator,
         recipient,
         100, // amount
+        token_address, // token contract address
         0x123, // hash_lock
         1000, // time_lock
         1, // target_chain
@@ -84,11 +86,13 @@ fn test_swap_note_zero_amount() {
     let initiator = AztecAddress::from_field(1);
     let recipient = AztecAddress::from_field(2);
     let owner = AztecAddress::from_field(3);
+    let token_address = AztecAddress::from_field(4);
     let note = SwapNote::new(
         1,
         initiator,
         recipient,
         0, // zero amount
+        token_address,
         0x123,
         1000,
         1,
@@ -105,12 +109,14 @@ fn test_swap_note_large_amount() {
     let initiator = AztecAddress::from_field(1);
     let recipient = AztecAddress::from_field(2);
     let owner = AztecAddress::from_field(3);
+    let token_address = AztecAddress::from_field(4);
     let large_amount = 0xFFFFFFFFFFFFFFFF;
     let note = SwapNote::new(
         1,
         initiator,
         recipient,
         large_amount,
+        token_address,
         0x123,
         1000,
         1,
@@ -125,11 +131,13 @@ fn test_swap_note_large_amount() {
 fn test_swap_note_same_initiator_recipient() {
     let same_address = AztecAddress::from_field(1);
     let owner = AztecAddress::from_field(2);
+    let token_address = AztecAddress::from_field(3);
     let note = SwapNote::new(
         1,
         same_address,
         same_address, // same as initiator
         100,
+        token_address,
         0x123,
         1000,
         1,
@@ -145,9 +153,10 @@ fn test_swap_note_different_swap_ids() {
     let initiator = AztecAddress::from_field(1);
     let recipient = AztecAddress::from_field(2);
     let owner = AztecAddress::from_field(3);
-    
-    let note1 = SwapNote::new(1, initiator, recipient, 100, 0x123, 1000, 1, 2, owner);
-    let note2 = SwapNote::new(999, initiator, recipient, 100, 0x123, 1000, 1, 2, owner);
+    let token_address = AztecAddress::from_field(4);
+
+    let note1 = SwapNote::new(1, initiator, recipient, 100, token_address, 0x123, 1000, 1, 2, owner);
+    let note2 = SwapNote::new(999, initiator, recipient, 100, token_address, 0x123, 1000, 1, 2, owner);
     
     assert(note1.swap_id != note2.swap_id);
     assert(note1.swap_id == 1);
@@ -295,11 +304,13 @@ fn test_swap_note_all_fields_accessible() {
     let initiator = AztecAddress::from_field(1);
     let recipient = AztecAddress::from_field(2);
     let owner = AztecAddress::from_field(3);
+    let token_address = AztecAddress::from_field(4);
     let note = SwapNote::new(
         100,
         initiator,
         recipient,
         1000,
+        token_address,
         0xABCD,
         7200,
         5,
