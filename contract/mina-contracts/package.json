@@ -18,6 +18,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "o1js": "^0.15.0"
+    "dotenv": "^17.2.3",
+    "o1js": "^2.11.0"
   }
 }
