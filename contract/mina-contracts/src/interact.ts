@@ -2,6 +2,7 @@
  * ============================================================================
  * MINA ATOMIC SWAP INTERACTION SCRIPT
  * Interact with deployed Ciphra.Pay zkApp
+ * Updated for 8-field optimized contract
  * ============================================================================
  */
 
@@ -13,6 +14,7 @@ import {
   UInt64,
   Poseidon,
   MerkleMap,
+  Signature,
   fetchAccount,
   Bool,
 } from 'o1js';
@@ -22,6 +24,7 @@ import {
   SwapDetails,
   SwapStatus,
   CrossChainProof,
+  ContractConfig,
   encodeChainName,
 } from './AtomicSwap.js';
 
@@ -55,7 +58,15 @@ async function setupNetwork() {
   await fetchAccount({ publicKey: deployerAccount });
   await fetchAccount({ publicKey: zkAppAddress });
 
-  return { zkApp, deployerKey, deployerAccount, zkAppAddress };
+  // Get current config (in production, fetch from off-chain storage/events)
+  // For now, we'll use the deployer as owner/feeRecipient/oracle
+  const config = new ContractConfig({
+    owner: deployerAccount,
+    feeRecipient: deployerAccount,
+    oraclePublicKey: deployerAccount,
+  });
+
+  return { zkApp, deployerKey, deployerAccount, zkAppAddress, config };
 }
 
 // ============================================================================
@@ -127,7 +138,7 @@ async function initiateSwap(args: any) {
 async function completeSwap(args: any) {
   console.log('\n🔓 Completing Atomic Swap...\n');
 
-  const { zkApp, deployerKey, deployerAccount } = await setupNetwork();
+  const { zkApp, deployerKey, deployerAccount, config } = await setupNetwork();
 
   // Parse arguments
   const swapId = Field(args.swapId);
@@ -170,7 +181,14 @@ async function completeSwap(args: any) {
   console.log('📤 Creating transaction...');
   const txn = await Mina.transaction({ sender: deployerAccount, fee: 0.1 * 1e9 },
     async () => {
-      zkApp.completeSwap(swapId, secret, swapDetails, witness, crossChainProof);
+      zkApp.completeSwap(
+        swapId,
+        secret,
+        swapDetails,
+        witness,
+        crossChainProof,
+        config // ← Added config parameter!
+      );
     }
   );
 
@@ -254,6 +272,48 @@ async function querySwap(args: any) {
   console.log('');
 }
 
+/**
+ * Update contract configuration
+ */
+async function updateConfig(args: any) {
+  console.log('\n⚙️  Updating Contract Config...\n');
+
+  const { zkApp, deployerKey, deployerAccount } = await setupNetwork();
+
+  const newConfig = new ContractConfig({
+    owner: args.owner ? PublicKey.fromBase58(args.owner) : deployerAccount,
+    feeRecipient: args.feeRecipient ? PublicKey.fromBase58(args.feeRecipient) : deployerAccount,
+    oraclePublicKey: args.oracle ? PublicKey.fromBase58(args.oracle) : deployerAccount,
+  });
+
+  console.log('📝 New Config:');
+  console.log(`   Owner:        ${newConfig.owner.toBase58()}`);
+  console.log(`   Fee Recipient: ${newConfig.feeRecipient.toBase58()}`);
+  console.log(`   Oracle:       ${newConfig.oraclePublicKey.toBase58()}\n`);
+
+  const configFields = [
+    ...newConfig.owner.toFields(),
+    ...newConfig.feeRecipient.toFields(),
+    ...newConfig.oraclePublicKey.toFields(),
+  ];
+  const signature = Signature.create(deployerKey, configFields);
+
+  console.log('📤 Creating transaction...');
+  const txn = await Mina.transaction({ sender: deployerAccount, fee: 0.1 * 1e9 },
+    async () => {
+      zkApp.updateConfig(newConfig, signature);
+    }
+  );
+
+  console.log('⚙️  Proving transaction...');
+  await txn.prove();
+
+  console.log('📝 Signing and sending...');
+  await txn.sign([deployerKey]).send();
+
+  console.log('\n✅ Config updated successfully!\n');
+}
+
 // ============================================================================
 // MAIN CLI
 // ============================================================================
@@ -291,6 +351,10 @@ switch (command) {
     querySwap(parsedArgs).catch(console.error);
     break;
 
+  case 'config':
+    updateConfig(parsedArgs).catch(console.error);
+    break;
+
   default:
     console.log(`📖 Mina Atomic Swap Interaction CLI
 
@@ -302,6 +366,7 @@ Commands:
   complete    Complete a swap by revealing secret
   refund      Refund an expired swap
   query       Query swap status
+  config      Update contract configuration
 
 Examples:
   # Initiate a swap
@@ -322,5 +387,10 @@ Examples:
   npm run interact refund --swapId 12345
 
   # Query swap
-  npm run interact query --swapId 12345`);
+  npm run interact query --swapId 12345
+
+  # Update config
+  npm run interact config \\
+    --feeRecipient B62qYYYYYYYYYYYYYYYYYYYY \\
+    --oracle B62qZZZZZZZZZZZZZZZZZZZZZ`);
 }

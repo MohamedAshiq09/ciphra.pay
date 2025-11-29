@@ -1,10 +1,3 @@
-/**
- * ============================================================================
- * MINA PROTOCOL DEPLOYMENT SCRIPT
- * Deploys Ciphra.Pay Atomic Swap zkApp to Berkeley Testnet
- * ============================================================================
- */
-
 // Load environment variables from .env file
 import dotenv from 'dotenv';
 dotenv.config();
@@ -22,10 +15,11 @@ import { AtomicSwapContract } from './AtomicSwap.js';
 // CONFIGURATION
 // ============================================================================
 
-const NETWORK = process.env.MINA_NETWORK || 'berkeley';
+const NETWORK = process.env.MINA_NETWORK || 'devnet';
 const FEE = 0.1; // MINA
 
 const NETWORKS = {
+  devnet: 'https://api.minascan.io/node/devnet/v1/graphql',
   berkeley: 'https://proxy.berkeley.minaexplorer.com/graphql',
   mainnet: 'https://proxy.minaexplorer.com/graphql',
 };
@@ -41,6 +35,13 @@ async function deploy() {
 
   // Setup network
   const networkUrl = NETWORKS[NETWORK as keyof typeof NETWORKS];
+  
+  if (!networkUrl) {
+    console.error(`❌ ERROR: Unknown network "${NETWORK}"`);
+    console.error('   Valid networks: devnet, berkeley, mainnet\n');
+    process.exit(1);
+  }
+  
   console.log(`📡 Network: ${NETWORK}`);
   console.log(`🌐 URL: ${networkUrl}\n`);
 
@@ -54,7 +55,9 @@ async function deploy() {
     console.error('   1. Create .env file in project root');
     console.error('   2. Generate a key:');
     console.error('      node -e "import(\'o1js\').then(m => { const key = m.PrivateKey.random(); console.log(\'Address:\', key.toPublicKey().toBase58()); console.log(\'Private Key:\', key.toBase58()); })"');
-    console.error('   3. Get testnet MINA from https://faucet.minaprotocol.com/');
+    console.error('   3. Get testnet MINA from:');
+    console.error('      Devnet: https://faucet.minaprotocol.com/ (select Devnet)');
+    console.error('      Berkeley: https://faucet.minaprotocol.com/ (select Berkeley)');
     console.error('   4. Add to .env: DEPLOYER_PRIVATE_KEY=EKE...\n');
     process.exit(1);
   }
@@ -68,12 +71,42 @@ async function deploy() {
   // Fetch deployer account
   console.log('⏳ Fetching deployer account...');
   try {
-    await fetchAccount({ publicKey: deployerAccount });
-    console.log('✅ Account fetched\n');
-  } catch (error) {
-    console.error('❌ Failed to fetch account. Make sure you have testnet MINA!');
-    console.error('   Get tokens from: https://faucet.minaprotocol.com/\n');
-    throw error;
+    const accountInfo = await fetchAccount({ publicKey: deployerAccount });
+    
+    if (accountInfo.account) {
+      const balance = Number(accountInfo.account.balance.toBigInt()) / 1e9;
+      console.log('✅ Account fetched');
+      console.log(`💰 Balance: ${balance.toFixed(4)} MINA`);
+      
+      if (balance < 2) {
+        console.log('\n⚠️  WARNING: Balance is low!');
+        console.log('   Deployment requires ~2 MINA');
+        console.log('   Get tokens from faucet:\n');
+        if (NETWORK === 'devnet') {
+          console.log('   🔗 https://faucet.minaprotocol.com/ (select Devnet)\n');
+        } else if (NETWORK === 'berkeley') {
+          console.log('   🔗 https://faucet.minaprotocol.com/ (select Berkeley)\n');
+        }
+      }
+    }
+    console.log('');
+  } catch (error: any) {
+    console.error('❌ Failed to fetch account!');
+    console.error(`   Error: ${error.message}\n`);
+    console.error('💡 This usually means:');
+    console.error('   1. Account has never been funded');
+    console.error('   2. Wrong network selected');
+    console.error('   3. Network is temporarily unavailable\n');
+    console.error('🔧 Solutions:');
+    console.error(`   1. Make sure you have ${NETWORK} MINA (not a different network!)`);
+    console.error('   2. Get tokens from faucet:');
+    if (NETWORK === 'devnet') {
+      console.error('      https://faucet.minaprotocol.com/ (select Devnet)');
+    } else if (NETWORK === 'berkeley') {
+      console.error('      https://faucet.minaprotocol.com/ (select Berkeley)');
+    }
+    console.error('   3. Check that MINA_NETWORK in .env matches your funded network\n');
+    process.exit(1);
   }
 
   // Generate zkApp account
@@ -129,7 +162,9 @@ async function deploy() {
   console.log(`   Fee:               ${FEE} MINA\n`);
 
   console.log('🔗 View on Explorer:');
-  if (NETWORK === 'berkeley') {
+  if (NETWORK === 'devnet') {
+    console.log(`   https://minascan.io/devnet/account/${zkAppAddress.toBase58()}\n`);
+  } else if (NETWORK === 'berkeley') {
     console.log(`   https://berkeley.minaexplorer.com/wallet/${zkAppAddress.toBase58()}\n`);
   } else {
     console.log(`   https://minaexplorer.com/wallet/${zkAppAddress.toBase58()}\n`);
@@ -157,8 +192,9 @@ deploy()
   .catch((error) => {
     console.error('\n❌ Deployment failed:', error);
     console.error('\n💡 Common issues:');
-    console.error('   - Make sure you have testnet MINA tokens');
+    console.error('   - Make sure you have MINA tokens on the CORRECT network');
     console.error('   - Check your DEPLOYER_PRIVATE_KEY in .env');
-    console.error('   - Verify network is accessible\n');
+    console.error('   - Verify MINA_NETWORK matches your funded network');
+    console.error('   - Ensure network is accessible\n');
     process.exit(1);
   });
