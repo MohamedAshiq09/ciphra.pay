@@ -1,6 +1,6 @@
 // ============================================================================
-// ENHANCED PRIVATE ATOMIC SWAP CONTRACT V3
-// Full Parity with Starknet V2: ERC20 Tokens, Cross-Chain, Fee Management
+// ENHANCED PRIVATE ATOMIC SWAP CONTRACT
+// Full Cross-Chain Support: Zcash ↔ Aztec, Starknet ↔ Aztec, NEAR ↔ Aztec
 // ============================================================================
 
 mod swap_note;
@@ -8,12 +8,8 @@ mod test;
 
 use dep::aztec::macros::aztec;
 
-// ============================================================================
-// Main Atomic Swap Contract V3
-// ============================================================================
-
 #[aztec]
-pub contract PrivateAtomicSwap {
+pub contract PrivateAtomicSwapV2 {
     use dep::aztec::macros::functions::{external, initializer, internal};
     use dep::aztec::macros::storage::storage;
     use dep::aztec::protocol_types::{
@@ -22,8 +18,6 @@ pub contract PrivateAtomicSwap {
     };
     use dep::aztec::state_vars::{Map, PrivateSet, PublicMutable};
     use dep::aztec::note::note_getter_options::NoteGetterOptions;
-    // Note: Poseidon2 hash is not yet available in Aztec v3.0.0-devnet.5
-    // use dep::aztec::hash::poseidon2_hash;
 
     use crate::swap_note::SwapNote;
 
@@ -41,17 +35,11 @@ pub contract PrivateAtomicSwap {
         public_swap_secrets: Map<Field, PublicMutable<Field, Context>, Context>,
         public_target_chains: Map<Field, PublicMutable<Field, Context>, Context>,
         public_target_swap_ids: Map<Field, PublicMutable<Field, Context>, Context>,
-        public_token_addresses: Map<Field, PublicMutable<AztecAddress, Context>, Context>,
-
-        // Fee tracking per token
-        collected_fees: Map<AztecAddress, PublicMutable<Field, Context>, Context>,
 
         // Configuration
         owner: PublicMutable<AztecAddress, Context>,
-        fee_percentage: PublicMutable<Field, Context>, // Basis points (30 = 0.3%)
+        fee_percentage: PublicMutable<Field, Context>, // Basis points
         fee_recipient: PublicMutable<AztecAddress, Context>,
-        min_time_lock_duration: PublicMutable<u64, Context>,
-        max_time_lock_duration: PublicMutable<u64, Context>,
 
         // Stats
         total_swaps: PublicMutable<Field, Context>,
@@ -72,25 +60,21 @@ pub contract PrivateAtomicSwap {
         storage.owner.write(owner);
         storage.fee_recipient.write(fee_recipient);
         storage.fee_percentage.write(initial_fee_percentage); // Default: 30 (0.3%)
-        storage.min_time_lock_duration.write(3600); // 1 hour
-        storage.max_time_lock_duration.write(172800); // 48 hours
         storage.total_swaps.write(0);
         storage.completed_swaps.write(0);
     }
 
     // ========================================================================
-    // Initiate Private Swap with Token Support
+    // Initiate Private Swap
     // ========================================================================
 
     /**
-     * Initiate a fully private cross-chain atomic swap with ERC20-like tokens
+     * Initiate a fully private cross-chain atomic swap
      *
      * @param swap_id - Unique identifier for the swap
      * @param recipient - Who will receive the tokens (private)
      * @param amount - Amount to swap (private)
-     * @param token_address - Address of the token contract
-     * @param hash_lock - Hash of the secret (Pedersen or Poseidon)
-     * @param hash_type - 0=Pedersen (Aztec native), 1=Poseidon (cross-chain)
+     * @param hash_lock - Pedersen hash of the secret
      * @param time_lock_duration - Duration in seconds
      * @param target_chain - Chain identifier: Field from "zcash", "starknet", "near"
      * @param target_swap_id - Linked swap ID on target chain
@@ -100,9 +84,7 @@ pub contract PrivateAtomicSwap {
         swap_id: Field,
         recipient: AztecAddress,
         amount: Field,
-        token_address: AztecAddress,
         hash_lock: Field,
-        hash_type: u8,
         time_lock_duration: u64,
         target_chain: Field,
         target_swap_id: Field,
@@ -113,17 +95,10 @@ pub contract PrivateAtomicSwap {
         let time_lock = current_time + time_lock_duration;
 
         // Validations
-        assert(amount != 0, "Amount must be positive");
-        assert((hash_type == 0) | (hash_type == 1), "Invalid hash type");
+        assert(amount > 0, "Amount must be positive");
+        assert(time_lock_duration >= 3600, "Min 1 hour");
+        assert(time_lock_duration <= 172800, "Max 48 hours");
         assert(!initiator.eq(recipient), "Cannot swap with self");
-
-        // Validate time lock (hardcoded since we can't read public storage from private context)
-        assert(time_lock_duration >= 3600, "Below min time lock (1h)");
-        assert(time_lock_duration <= 172800, "Above max time lock (48h)");
-
-        // TODO: Transfer tokens from initiator to this contract
-        // In production, you would call:
-        // Token::at(token_address).transfer_from(initiator, context.this_address(), amount).call(&mut context);
 
         // Create private swap note
         let owner = context.this_address();
@@ -132,7 +107,6 @@ pub contract PrivateAtomicSwap {
             initiator,
             recipient,
             amount,
-            token_address,
             hash_lock,
             time_lock,
             target_chain,
@@ -144,18 +118,18 @@ pub contract PrivateAtomicSwap {
         storage.private_swaps.at(swap_id).insert(note).discard();
 
         // Update public state (for backend monitoring)
-        PrivateAtomicSwap::at(context.this_address())
-            .register_swap_public(swap_id, target_chain, target_swap_id, token_address)
+        PrivateAtomicSwapV2::at(context.this_address())
+            .register_swap_public(swap_id, target_chain, target_swap_id)
             .enqueue(&mut context);
 
         // Increment stats
-        PrivateAtomicSwap::at(context.this_address())
+        PrivateAtomicSwapV2::at(context.this_address())
             .increment_total_swaps()
             .enqueue(&mut context);
     }
 
     // ========================================================================
-    // Complete Private Swap with Fee Deduction
+    // Complete Private Swap
     // ========================================================================
 
     /**
@@ -164,7 +138,7 @@ pub contract PrivateAtomicSwap {
      * Stores secret in public state for backend to monitor
      */
     #[external("private")]
-    fn complete_private_swap(swap_id: Field, secret: Field, hash_type: u8) {
+    fn complete_private_swap(swap_id: Field, secret: Field) {
         let header = context.get_anchor_block_header();
         let current_time = header.global_variables.timestamp as u64;
         let caller = context.msg_sender().unwrap();
@@ -181,23 +155,15 @@ pub contract PrivateAtomicSwap {
         assert(current_time <= inner_note.time_lock, "Swap expired");
         assert(inner_note.status == 1, "Swap not active");
 
-        // Verify secret using appropriate hash function
-        // Note: Currently only Pedersen is supported (hash_type ignored for now)
-        // TODO: Add Poseidon2 support when available in Aztec
+        // Verify secret using Pedersen hash
         let computed_hash = pedersen_hash([secret], 0);
         assert(computed_hash == inner_note.hash_lock, "Invalid secret");
 
         // Verify caller is recipient
         assert(caller.eq(inner_note.recipient), "Only recipient");
 
-        // Calculate fee (hardcoded 0.3% since we can't read public storage from private)
-        let fee_pct = 30; // 0.3% = 30 basis points
-        let fee_amount = (inner_note.amount * fee_pct) / 10000;
-
-        // TODO: Transfer tokens to recipient and collect fee
-        // In production:
-        // Token::at(inner_note.token_address).transfer(inner_note.recipient, recipient_amount).call(&mut context);
-        // Storage fee would be tracked in public state
+        // TODO: Transfer tokens (requires Aztec token integration)
+        // For now, we just update the state
 
         // Consume old note
         storage.private_swaps.at(swap_id).remove(note);
@@ -206,20 +172,13 @@ pub contract PrivateAtomicSwap {
         inner_note.status = 2; // Completed
         storage.private_swaps.at(swap_id).insert(inner_note).discard();
 
-        // Update public state with secret and track fee
-        PrivateAtomicSwap::at(context.this_address())
-            .complete_swap_public(
-                swap_id,
-                secret,
-                inner_note.target_chain,
-                inner_note.target_swap_id,
-                inner_note.token_address,
-                fee_amount
-            )
+        // Update public state with secret (CRITICAL for backend!)
+        PrivateAtomicSwapV2::at(context.this_address())
+            .store_revealed_secret(swap_id, secret, inner_note.target_chain, inner_note.target_swap_id)
             .enqueue(&mut context);
 
         // Increment completed swaps
-        PrivateAtomicSwap::at(context.this_address())
+        PrivateAtomicSwapV2::at(context.this_address())
             .increment_completed_swaps()
             .enqueue(&mut context);
     }
@@ -250,9 +209,6 @@ pub contract PrivateAtomicSwap {
         assert(current_time > inner_note.time_lock, "Time lock active");
         assert(inner_note.status == 1, "Swap not active");
 
-        // TODO: Transfer tokens back to initiator
-        // Token::at(inner_note.token_address).transfer(inner_note.initiator, inner_note.amount).call(&mut context);
-
         // Consume old note
         storage.private_swaps.at(swap_id).remove(note);
 
@@ -261,13 +217,13 @@ pub contract PrivateAtomicSwap {
         storage.private_swaps.at(swap_id).insert(inner_note).discard();
 
         // Update public status
-        PrivateAtomicSwap::at(context.this_address())
+        PrivateAtomicSwapV2::at(context.this_address())
             .update_swap_status(swap_id, 3)
             .enqueue(&mut context);
     }
 
     // ========================================================================
-    // Public Functions (for backend monitoring & fee management)
+    // Public Functions (for backend monitoring)
     // ========================================================================
 
     /**
@@ -275,38 +231,26 @@ pub contract PrivateAtomicSwap {
      */
     #[external("public")]
     #[internal]
-    fn register_swap_public(
-        swap_id: Field,
-        target_chain: Field,
-        target_swap_id: Field,
-        token_address: AztecAddress
-    ) {
+    fn register_swap_public(swap_id: Field, target_chain: Field, target_swap_id: Field) {
         storage.public_swap_status.at(swap_id).write(1); // Active
         storage.public_target_chains.at(swap_id).write(target_chain);
         storage.public_target_swap_ids.at(swap_id).write(target_swap_id);
-        storage.public_token_addresses.at(swap_id).write(token_address);
     }
 
     /**
-     * Complete swap in public state and track fees
-     * CRITICAL: Backend monitors this to complete swaps on other chains
+     * Store revealed secret (CRITICAL for cross-chain coordination)
+     * Backend monitors this to complete swaps on other chains
      */
     #[external("public")]
     #[internal]
-    fn complete_swap_public(
+    fn store_revealed_secret(
         swap_id: Field,
         secret: Field,
-        _target_chain: Field,
-        _target_swap_id: Field,
-        token_address: AztecAddress,
-        fee_amount: Field
+        target_chain: Field,
+        target_swap_id: Field
     ) {
         storage.public_swap_status.at(swap_id).write(2); // Completed
         storage.public_swap_secrets.at(swap_id).write(secret); // Store secret!
-
-        // Track collected fees per token
-        let current_fees = storage.collected_fees.at(token_address).read();
-        storage.collected_fees.at(token_address).write(current_fees + fee_amount);
     }
 
     /**
@@ -336,40 +280,6 @@ pub contract PrivateAtomicSwap {
     fn increment_completed_swaps() {
         let current = storage.completed_swaps.read();
         storage.completed_swaps.write(current + 1);
-    }
-
-    // ========================================================================
-    // Fee Management (NEW - matching Starknet V2)
-    // ========================================================================
-
-    /**
-     * Withdraw collected fees for a specific token (only owner/fee_recipient)
-     */
-    #[external("public")]
-    fn withdraw_fees(token_address: AztecAddress) {
-        let caller = context.msg_sender().unwrap();
-        let owner = storage.owner.read();
-        let fee_recipient = storage.fee_recipient.read();
-
-        // Compare addresses directly
-        assert((caller == owner) | (caller == fee_recipient), "Only owner or fee recipient");
-
-        let fee_amount = storage.collected_fees.at(token_address).read();
-        assert(fee_amount != 0, "No fees to withdraw");
-
-        // Reset collected fees
-        storage.collected_fees.at(token_address).write(0);
-
-        // TODO: Transfer fees to fee recipient
-        // Token::at(token_address).transfer(fee_recipient, fee_amount).call(&mut context);
-    }
-
-    /**
-     * Get collected fees for a token
-     */
-    #[external("utility")]
-    unconstrained fn get_collected_fees(token_address: AztecAddress) -> pub Field {
-        storage.collected_fees.at(token_address).read()
     }
 
     // ========================================================================
@@ -411,14 +321,6 @@ pub contract PrivateAtomicSwap {
     }
 
     /**
-     * Get token address for a swap
-     */
-    #[external("utility")]
-    unconstrained fn get_token_address(swap_id: Field) -> pub AztecAddress {
-        storage.public_token_addresses.at(swap_id).read()
-    }
-
-    /**
      * Get total number of swaps
      */
     #[external("utility")]
@@ -440,17 +342,13 @@ pub contract PrivateAtomicSwap {
 
     /**
      * Set fee percentage (only owner)
-     * Max 10% (1000 basis points)
      */
     #[external("public")]
     fn set_fee_percentage(new_fee: Field) {
-        let caller = context.msg_sender().unwrap();
+        let caller = context.msg_sender();
         let owner = storage.owner.read();
-        assert(caller == owner, "Only owner");
-        // Max fee check (1000 basis points = 10%)
-        // Note: Can't use <= on Field, so we check if new_fee - 1000 would underflow
-        let max_fee = 1000;
-        assert((new_fee == max_fee) | (new_fee as u64 < max_fee as u64), "Fee too high (max 10%)");
+        assert(caller.eq(owner), "Only owner");
+        assert(new_fee <= 1000, "Fee too high (max 10%)");
 
         storage.fee_percentage.write(new_fee);
     }
@@ -460,25 +358,11 @@ pub contract PrivateAtomicSwap {
      */
     #[external("public")]
     fn set_fee_recipient(new_recipient: AztecAddress) {
-        let caller = context.msg_sender().unwrap();
+        let caller = context.msg_sender();
         let owner = storage.owner.read();
-        assert(caller == owner, "Only owner");
+        assert(caller.eq(owner), "Only owner");
 
         storage.fee_recipient.write(new_recipient);
-    }
-
-    /**
-     * Set time lock bounds (only owner)
-     */
-    #[external("public")]
-    fn set_time_lock_bounds(min_duration: u64, max_duration: u64) {
-        let caller = context.msg_sender().unwrap();
-        let owner = storage.owner.read();
-        assert(caller == owner, "Only owner");
-        assert(min_duration < max_duration, "Invalid bounds");
-
-        storage.min_time_lock_duration.write(min_duration);
-        storage.max_time_lock_duration.write(max_duration);
     }
 
     /**
@@ -487,13 +371,5 @@ pub contract PrivateAtomicSwap {
     #[external("utility")]
     unconstrained fn get_fee_percentage() -> pub Field {
         storage.fee_percentage.read()
-    }
-
-    /**
-     * Get fee recipient
-     */
-    #[external("utility")]
-    unconstrained fn get_fee_recipient() -> pub AztecAddress {
-        storage.fee_recipient.read()
     }
 }
