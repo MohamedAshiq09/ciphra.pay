@@ -111,10 +111,17 @@ export class AtomicSwapContract extends SmartContract {
     targetSwapId: Field,
     merkleWitness: MerkleMapWitness
   ) {
-    const currentRoot = this.swapsRoot.getAndRequireEquals();
-    const currentTime = this.network.blockchainLength.getAndRequireEquals();
-    const minDuration = this.minTimeLockDuration.getAndRequireEquals();
-    const maxDuration = this.maxTimeLockDuration.getAndRequireEquals();
+    const currentRoot = this.swapsRoot.get();
+    this.swapsRoot.requireEquals(currentRoot);
+    
+    const currentTime = this.network.blockchainLength.get();
+    this.network.blockchainLength.requireEquals(currentTime);
+    
+    const minDuration = this.minTimeLockDuration.get();
+    this.minTimeLockDuration.requireEquals(minDuration);
+    
+    const maxDuration = this.maxTimeLockDuration.get();
+    this.maxTimeLockDuration.requireEquals(maxDuration);
 
     timeLockDuration.assertGreaterThanOrEqual(minDuration);
     timeLockDuration.assertLessThanOrEqual(maxDuration);
@@ -157,10 +164,17 @@ export class AtomicSwapContract extends SmartContract {
     merkleWitness: MerkleMapWitness,
     crossChainProof: CrossChainProof
   ) {
-    const currentRoot = this.swapsRoot.getAndRequireEquals();
-    const currentTime = this.network.blockchainLength.getAndRequireEquals();
-    const feePercentage = this.feePercentage.getAndRequireEquals();
-    const feeRecipient = this.feeRecipient.getAndRequireEquals();
+    const currentRoot = this.swapsRoot.get();
+    this.swapsRoot.requireEquals(currentRoot);
+    
+    const currentTime = this.network.blockchainLength.get();
+    this.network.blockchainLength.requireEquals(currentTime);
+    
+    const feePercentage = this.feePercentage.get();
+    this.feePercentage.requireEquals(feePercentage);
+    
+    const feeRecipient = this.feeRecipient.get();
+    this.feeRecipient.requireEquals(feeRecipient);
 
     const swapHash = swapDetails.hash();
     const [verifiedRoot, verifiedKey] = merkleWitness.computeRootAndKey(swapHash);
@@ -208,8 +222,11 @@ export class AtomicSwapContract extends SmartContract {
     swapDetails: SwapDetails,
     merkleWitness: MerkleMapWitness
   ) {
-    const currentRoot = this.swapsRoot.getAndRequireEquals();
-    const currentTime = this.network.blockchainLength.getAndRequireEquals();
+    const currentRoot = this.swapsRoot.get();
+    this.swapsRoot.requireEquals(currentRoot);
+    
+    const currentTime = this.network.blockchainLength.get();
+    this.network.blockchainLength.requireEquals(currentTime);
 
     const swapHash = swapDetails.hash();
     const [verifiedRoot, verifiedKey] = merkleWitness.computeRootAndKey(swapHash);
@@ -238,7 +255,8 @@ export class AtomicSwapContract extends SmartContract {
     proof: CrossChainProof,
     oracleSignature: Signature
   ) {
-    const oracle = this.oraclePublicKey.getAndRequireEquals();
+    const oracle = this.oraclePublicKey.get();
+    this.oraclePublicKey.requireEquals(oracle);
 
     const proofFields = [
       proof.chainId,
@@ -259,7 +277,9 @@ export class AtomicSwapContract extends SmartContract {
   }
 
   @method async setFeePercentage(newFee: UInt64, ownerSignature: Signature) {
-    const owner = this.owner.getAndRequireEquals();
+    const owner = this.owner.get();
+    this.owner.requireEquals(owner);
+    
     const isValid = ownerSignature.verify(owner, [newFee.value]);
     isValid.assertTrue();
     newFee.assertLessThanOrEqual(UInt64.from(1000));
@@ -267,14 +287,18 @@ export class AtomicSwapContract extends SmartContract {
   }
 
   @method async setFeeRecipient(newRecipient: PublicKey, ownerSignature: Signature) {
-    const owner = this.owner.getAndRequireEquals();
+    const owner = this.owner.get();
+    this.owner.requireEquals(owner);
+    
     const isValid = ownerSignature.verify(owner, newRecipient.toFields());
     isValid.assertTrue();
     this.feeRecipient.set(newRecipient);
   }
 
   @method async setOraclePublicKey(newOracle: PublicKey, ownerSignature: Signature) {
-    const owner = this.owner.getAndRequireEquals();
+    const owner = this.owner.get();
+    this.owner.requireEquals(owner);
+    
     const isValid = ownerSignature.verify(owner, newOracle.toFields());
     isValid.assertTrue();
     this.oraclePublicKey.set(newOracle);
