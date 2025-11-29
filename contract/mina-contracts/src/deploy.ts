@@ -86,7 +86,7 @@ async function deploy() {
   // Deploy transaction
   console.log('📤 Creating deployment transaction...');
   const txn = await Mina.transaction({ sender: deployerAccount, fee: FEE * 1e9 },
-    () => {
+    async () => {
       AccountUpdate.fundNewAccount(deployerAccount);
       zkApp.deploy();
     }

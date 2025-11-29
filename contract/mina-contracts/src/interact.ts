@@ -96,7 +96,7 @@ async function initiateSwap(args: any) {
   // Create transaction
   console.log('📤 Creating transaction...');
   const txn = await Mina.transaction({ sender: deployerAccount, fee: 0.1 * 1e9 },
-    () => {
+    async () => {
       zkApp.initiateSwap(
         swapId,
         recipient,
@@ -169,7 +169,7 @@ async function completeSwap(args: any) {
   // Create transaction
   console.log('📤 Creating transaction...');
   const txn = await Mina.transaction({ sender: deployerAccount, fee: 0.1 * 1e9 },
-    () => {
+    async () => {
       zkApp.completeSwap(swapId, secret, swapDetails, witness, crossChainProof);
     }
   );
@@ -217,7 +217,7 @@ async function refundSwap(args: any) {
 
   console.log('📤 Creating transaction...');
   const txn = await Mina.transaction({ sender: deployerAccount, fee: 0.1 * 1e9 },
-    () => {
+    async () => {
       zkApp.refundSwap(swapId, swapDetails, witness);
     }
   );
