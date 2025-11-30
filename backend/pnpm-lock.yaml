@@ -71,6 +71,9 @@ importers:
       typeorm:
         specifier: ^0.3.20
         version: 0.3.27(ioredis@5.8.2)(pg@8.16.3)(reflect-metadata@0.2.2)(ts-node@10.9.2(@types/node@22.19.1)(typescript@5.9.3))
+      x402-starknet:
+        specifier: ^0.3.2
+        version: 0.3.2(starknet@8.9.1)
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -4605,6 +4608,12 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  x402-starknet@0.3.2:
+    resolution: {integrity: sha512-gagbOGCWQjbarqf2awkD2lpPSP5gCt9iiE9xj19of9eUKt+K0jmZJvp6S3U9GPhQa6Ty9WO7mEitjfw7M6eOlw==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      starknet: ^8.0.0
 
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
@@ -10212,6 +10221,11 @@ snapshots:
       signal-exit: 4.1.0
 
   ws@8.18.3: {}
+
+  x402-starknet@0.3.2(starknet@8.9.1):
+    dependencies:
+      starknet: 8.9.1
+      zod: 3.25.76
 
   xtend@4.0.2: {}
 
