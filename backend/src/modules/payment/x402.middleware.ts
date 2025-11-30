@@ -2,6 +2,7 @@ import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from './payment.service';
 import { PaymentRequiredResponseDto } from './dto';
+import { decodePaymentHeader } from 'x402-starknet';
 
 /**
  * X402 Middleware
@@ -15,6 +16,7 @@ import { PaymentRequiredResponseDto } from './dto';
  * 5. If valid → Settle payment and allow access
  * 6. If invalid → Return 402 with error details
  */
+
 @Injectable()
 export class X402Middleware implements NestMiddleware {
   private readonly logger = new Logger(X402Middleware.name);
@@ -26,7 +28,9 @@ export class X402Middleware implements NestMiddleware {
 
     // Skip payment check if X402 is disabled
     if (!this.paymentService.isEnabled()) {
-      this.logger.debug(`X402 disabled, skipping payment check for ${resource}`);
+      this.logger.debug(
+        `X402 disabled, skipping payment check for ${resource}`,
+      );
       return next();
     }
 
@@ -35,7 +39,9 @@ export class X402Middleware implements NestMiddleware {
 
     // No payment header → Return 402 Payment Required
     if (!paymentHeader) {
-      this.logger.log(`No payment header provided for ${resource}, returning 402`);
+      this.logger.log(
+        `No payment header provided for ${resource}, returning 402`,
+      );
       return this.return402(res, resource);
     }
 
@@ -56,16 +62,13 @@ export class X402Middleware implements NestMiddleware {
 
       // Payment verified → Settle it
       this.logger.log(`Payment verified for ${resource}, settling...`);
-
-      // Decode payment header
-      const payload = await this.paymentService.decodePayment(paymentHeader);
-
+      const payload = decodePaymentHeader(paymentHeader);
       const settlement = await this.paymentService.settlePayment(
         payload,
         resource,
       );
 
-      // Check settlement status (lowercase values per starknet.js)
+      // Check settlement status
       if (
         settlement.status !== 'accepted_on_l2' &&
         settlement.status !== 'accepted_on_l1'
@@ -81,7 +84,7 @@ export class X402Middleware implements NestMiddleware {
       }
 
       // Payment successful → Allow access
-      const txHash = settlement.transaction;
+      const txHash = settlement.transaction?.transaction_hash || 'pending';
       this.logger.log(
         `Payment settled successfully for ${resource}: ${txHash}`,
       );
@@ -91,18 +94,14 @@ export class X402Middleware implements NestMiddleware {
         verified: true,
         settled: true,
         txHash,
-        amount: payload.payload.authorization.amount,
-        from: payload.payload.authorization.from,
+        amount: payload.amount,
+        from: payload.from,
       };
 
       next();
     } catch (error) {
       this.logger.error(`Error processing payment for ${resource}:`, error);
-      return this.return402(
-        res,
-        resource,
-        'Internal error processing payment',
-      );
+      return this.return402(res, resource, 'Internal error processing payment');
     }
   }
 
@@ -110,7 +109,8 @@ export class X402Middleware implements NestMiddleware {
    * Return HTTP 402 Payment Required response
    */
   private return402(res: Response, resource: string, reason?: string) {
-    const requirements = this.paymentService.createPaymentRequirements(resource);
+    const requirements =
+      this.paymentService.createPaymentRequirements(resource);
 
     const response = new PaymentRequiredResponseDto(
       [requirements],
