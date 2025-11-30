@@ -5,6 +5,8 @@ import { AppConfigModule } from './common/config/config.module';
 import { HashOracleModule } from './modules/hash-oracle/hash-oracle.module';
 import { AztecModule } from './modules/aztec/aztec.module';
 import { StarknetModule } from './modules/starknet/starknet.module';
+import { SwapModule } from './modules/swap/swap.module';
+import { BridgeModule } from './modules/bridge/bridge.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { StarknetModule } from './modules/starknet/starknet.module';
     HashOracleModule,
     AztecModule,
     StarknetModule,
+    SwapModule,
+    BridgeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
