@@ -59,10 +59,14 @@ export class AztecService implements OnModuleInit {
       
       this.logger.log(`✅ Connected to Aztec PXE`);
       this.logger.log(`✅ Loaded PrivateAtomicSwap contract at ${this.contractAddress.toString()}`);
-      
-      // Verify connection by reading total swaps
-      const totalSwaps = await this.getTotalSwaps();
-      this.logger.log(`📊 Total swaps on contract: ${totalSwaps}`);
+
+      // Verify connection by reading total swaps (skip if contract not loaded)
+      if (this.contract) {
+        const totalSwaps = await this.getTotalSwaps();
+        this.logger.log(`📊 Total swaps on contract: ${totalSwaps}`);
+      } else {
+        this.logger.warn(`⚠️  Contract artifact not loaded - skipping verification`);
+      }
       
     } catch (error) {
       this.logger.error(`Failed to initialize Aztec service: ${error.message}`);

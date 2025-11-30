@@ -3,12 +3,12 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { AztecService } from '../aztec/aztec.service';
 import { StarknetService } from '../starknet/starknet.service';
 import { HashOracleService } from '../hash-oracle/hash-oracle.service';
-import {
+import { TargetChain } from '../aztec/dto/swap.dto';
+import type {
   SwapInitiatedEvent as AztecSwapInitiatedEvent,
   SwapCompletedEvent as AztecSwapCompletedEvent,
-  TargetChain,
 } from '../aztec/dto/swap.dto';
-import {
+import type {
   StarknetSwapInitiatedEvent,
   StarknetSwapCompletedEvent,
 } from '../starknet/dto/swap.dto';
