@@ -39,6 +39,12 @@ export class HashConversionDto {
   secret: string;
 }
 
+export class ConvertHashDto {
+  @IsString()
+  @IsNotEmpty()
+  secret: string;
+}
+
 export interface SecretHashes {
   secret: string;
   sha256: string;
