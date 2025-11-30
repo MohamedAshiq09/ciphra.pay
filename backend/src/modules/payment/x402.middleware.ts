@@ -84,7 +84,9 @@ export class X402Middleware implements NestMiddleware {
       }
 
       // Payment successful → Allow access
-      const txHash = settlement.transaction?.transaction_hash || 'pending';
+      const txHash = typeof settlement.transaction === 'string'
+        ? settlement.transaction
+        : (settlement.transaction as any)?.transaction_hash || 'pending';
       this.logger.log(
         `Payment settled successfully for ${resource}: ${txHash}`,
       );
@@ -94,8 +96,7 @@ export class X402Middleware implements NestMiddleware {
         verified: true,
         settled: true,
         txHash,
-        amount: payload.amount,
-        from: payload.from,
+        payload: payload,
       };
 
       next();
