@@ -420,4 +420,73 @@ export class SwapController {
     );
     return this.initiateSwap(dto);
   }
+
+  /**
+   * POST /api/swap/test-onchain
+   *
+   * TEST ENDPOINT: Actually call the Starknet contract
+   * This is for development testing of on-chain swap initiation
+   */
+  @Post('test-onchain')
+  @HttpCode(HttpStatus.CREATED)
+  async testOnChainSwap(@Body() dto: InitiateCrossChainSwapDto) {
+    this.logger.log(`🔗 TEST ON-CHAIN: ${dto.sourceChain} → ${dto.destChain}`);
+
+    // First generate the swap parameters
+    const swapParams = await this.initiateSwap(dto);
+
+    if (dto.sourceChain !== SwapChain.STARKNET) {
+      return {
+        ...swapParams,
+        onChainStatus: 'skipped',
+        message: 'On-chain test only supported for Starknet source',
+      };
+    }
+
+    // Now actually call the Starknet contract
+    try {
+      const sourceAddress = dto.userAddresses[dto.sourceChain];
+      if (!sourceAddress) {
+        throw new Error(`Missing ${dto.sourceChain} address in userAddresses`);
+      }
+      const timeLockTimestamp =
+        Math.floor(Date.now() / 1000) + swapParams.sourceTimeLock;
+
+      this.logger.log(`📝 Calling Starknet contract...`);
+      this.logger.log(`   Swap ID: ${swapParams.sourceSwapId}`);
+      this.logger.log(`   Recipient: ${sourceAddress}`);
+      this.logger.log(`   Hash Lock: ${swapParams.hashes.poseidon}`);
+      this.logger.log(`   Time Lock: ${timeLockTimestamp}`);
+      this.logger.log(`   Amount: ${dto.sourceAmount}`);
+
+      const txHash = await this.starknetService.initiateSwap({
+        swapId: swapParams.sourceSwapId,
+        recipient: sourceAddress,
+        hashLock: swapParams.hashes.poseidon,
+        timeLock: timeLockTimestamp,
+        amount: dto.sourceAmount,
+        tokenAddress:
+          dto.sourceToken ||
+          '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d', // STRK
+        targetChain: dto.destChain,
+        targetSwapId: swapParams.destSwapId,
+      });
+
+      this.logger.log(`✅ Transaction hash: ${txHash}`);
+
+      return {
+        ...swapParams,
+        onChainStatus: 'success',
+        transactionHash: txHash,
+        explorerUrl: `https://sepolia.starkscan.co/tx/${txHash}`,
+      };
+    } catch (error) {
+      this.logger.error(`❌ On-chain call failed: ${error.message}`);
+      return {
+        ...swapParams,
+        onChainStatus: 'failed',
+        error: error.message,
+      };
+    }
+  }
 }

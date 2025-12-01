@@ -56,11 +56,12 @@ export class StarknetService implements OnModuleInit {
       });
 
       // Load contract ABI from file
+      // Note: The deployed contract is AtomicSwap V1, not V2
       // Use process.cwd() for a stable path that works both in dev and prod
       try {
         const abiPath = path.join(
           process.cwd(),
-          'src/contracts/AtomicSwapV2.json',
+          'src/contracts/AtomicSwap.json',
         );
         const abi = JSON.parse(fs.readFileSync(abiPath, 'utf-8'));
 
@@ -70,7 +71,7 @@ export class StarknetService implements OnModuleInit {
           address: this.config.starknetAtomicSwapAddress,
           providerOrAccount: this.provider,
         });
-        this.logger.log(`✅ Loaded AtomicSwapV2 ABI from ${abiPath}`);
+        this.logger.log(`✅ Loaded AtomicSwap ABI from ${abiPath}`);
       } catch (abiError) {
         this.logger.warn(`⚠️ Could not load ABI file: ${abiError.message}`);
         this.logger.warn(`   Contract calls will be limited`);
@@ -182,30 +183,24 @@ export class StarknetService implements OnModuleInit {
       });
 
       // For u256, starknet.js v8 with ABI can accept BigInt directly
-      // Or we can pass as { low, high } object
       const amountBigInt = BigInt(dto.amount);
 
-      this.logger.log(`📝 Calling contract.initiate_swap()...`);
+      this.logger.log(`📝 Calling contract.initiate_swap() [V1 contract]...`);
       this.logger.log(`   swap_id: ${dto.swapId}`);
       this.logger.log(`   recipient: ${dto.recipient}`);
       this.logger.log(`   hash_lock: ${dto.hashLock}`);
       this.logger.log(`   time_lock: ${dto.timeLock}`);
       this.logger.log(`   amount: ${amountBigInt}`);
-      this.logger.log(`   token_address: ${dto.tokenAddress}`);
-      this.logger.log(`   target_chain: ${dto.targetChain}`);
-      this.logger.log(`   target_swap_id: ${dto.targetSwapId}`);
 
-      // Call initiate_swap on the contract
-      // With proper ABI, starknet.js handles type conversion
+      // Call initiate_swap on the V1 contract
+      // V1 signature: initiate_swap(swap_id, recipient, hash_lock, time_lock, amount)
+      // Note: V1 doesn't have token_address, target_chain, target_swap_id
       const tx = await connectedContract.initiate_swap(
         dto.swapId, // swap_id: felt252
         dto.recipient, // recipient: ContractAddress
         dto.hashLock, // hash_lock: felt252
         dto.timeLock, // time_lock: u64
-        amountBigInt, // amount: u256 - pass as BigInt
-        dto.tokenAddress, // token_address: ContractAddress
-        dto.targetChain, // target_chain: felt252
-        dto.targetSwapId, // target_swap_id: felt252
+        amountBigInt, // amount: u256
       );
 
       this.logger.log(`✅ Transaction submitted: ${tx.transaction_hash}`);
@@ -252,10 +247,7 @@ export class StarknetService implements OnModuleInit {
 
       // Call complete_swap on the contract
       // secret is felt252, not u256
-      const tx = await connectedContract.complete_swap(
-        dto.swapId,
-        dto.secret,
-      );
+      const tx = await connectedContract.complete_swap(dto.swapId, dto.secret);
 
       this.logger.log(`Transaction submitted: ${tx.transaction_hash}`);
 
