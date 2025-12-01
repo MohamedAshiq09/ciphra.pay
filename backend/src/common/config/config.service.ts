@@ -7,7 +7,10 @@ export class AppConfigService {
 
   // Aztec Configuration
   get aztecPxeUrl(): string {
-    return this.configService.get<string>('AZTEC_PXE_URL', 'http://localhost:8080');
+    return this.configService.get<string>(
+      'AZTEC_PXE_URL',
+      'http://localhost:8080',
+    );
   }
 
   get aztecContractAddress(): string {
@@ -28,15 +31,23 @@ export class AppConfigService {
 
   // Starknet Configuration
   get starknetRpcUrl(): string {
-    return this.configService.get<string>('STARKNET_RPC_URL', 'http://localhost:5050');
+    return this.configService.get<string>(
+      'STARKNET_RPC_URL',
+      'http://localhost:5050',
+    );
   }
 
   get starknetNetwork(): string {
-    return this.configService.get<string>('STARKNET_NETWORK', 'starknet-devnet');
+    return this.configService.get<string>(
+      'STARKNET_NETWORK',
+      'starknet-devnet',
+    );
   }
 
   get starknetAtomicSwapAddress(): string {
-    const address = this.configService.get<string>('STARKNET_ATOMIC_SWAP_ADDRESS');
+    const address = this.configService.get<string>(
+      'STARKNET_ATOMIC_SWAP_ADDRESS',
+    );
     if (!address) {
       throw new Error('STARKNET_ATOMIC_SWAP_ADDRESS is required');
     }
@@ -69,7 +80,10 @@ export class AppConfigService {
 
   // x402 Paymaster Configuration
   get paymasterEndpoint(): string {
-    return this.configService.get<string>('PAYMASTER_ENDPOINT', 'http://localhost:12777');
+    return this.configService.get<string>(
+      'PAYMASTER_ENDPOINT',
+      'http://localhost:12777',
+    );
   }
 
   get paymasterApiKey(): string | undefined {
