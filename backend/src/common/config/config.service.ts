@@ -59,6 +59,14 @@ export class AppConfigService {
     return key;
   }
 
+  get starknetWalletAddress(): string {
+    const address = this.configService.get<string>('STARKNET_WALLET_ADDRESS');
+    if (!address) {
+      throw new Error('STARKNET_WALLET_ADDRESS is required');
+    }
+    return address;
+  }
+
   // x402 Paymaster Configuration
   get paymasterEndpoint(): string {
     return this.configService.get<string>('PAYMASTER_ENDPOINT', 'http://localhost:12777');
