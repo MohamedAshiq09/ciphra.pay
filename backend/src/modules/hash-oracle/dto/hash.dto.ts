@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsNumber } from 'class-validator';
 
 export enum HashAlgorithm {
   SHA256 = 'sha256',
@@ -7,7 +7,8 @@ export enum HashAlgorithm {
 }
 
 export class GenerateSecretDto {
-  @IsNotEmpty()
+  @IsOptional()
+  @IsNumber()
   length?: number = 32;
 }
 
