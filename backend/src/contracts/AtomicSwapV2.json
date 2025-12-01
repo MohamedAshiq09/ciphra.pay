@@ -1,0 +1,430 @@
+[
+  {
+    "type": "impl",
+    "name": "AtomicSwapV2Impl",
+    "interface_name": "ciphra_pay::atomic_swap_v2::IAtomicSwapV2"
+  },
+  {
+    "type": "struct",
+    "name": "core::integer::u256",
+    "members": [
+      {
+        "name": "low",
+        "type": "core::integer::u128"
+      },
+      {
+        "name": "high",
+        "type": "core::integer::u128"
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "ciphra_pay::atomic_swap_v2::SwapStatus",
+    "variants": [
+      {
+        "name": "Empty",
+        "type": "()"
+      },
+      {
+        "name": "Active",
+        "type": "()"
+      },
+      {
+        "name": "Completed",
+        "type": "()"
+      },
+      {
+        "name": "Refunded",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "ciphra_pay::atomic_swap_v2::SwapDetails",
+    "members": [
+      {
+        "name": "initiator",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "recipient",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "amount",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "token_address",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "hash_lock",
+        "type": "core::felt252"
+      },
+      {
+        "name": "time_lock",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "status",
+        "type": "ciphra_pay::atomic_swap_v2::SwapStatus"
+      },
+      {
+        "name": "secret",
+        "type": "core::felt252"
+      },
+      {
+        "name": "target_chain",
+        "type": "core::felt252"
+      },
+      {
+        "name": "target_swap_id",
+        "type": "core::felt252"
+      },
+      {
+        "name": "created_at",
+        "type": "core::integer::u64"
+      }
+    ]
+  },
+  {
+    "type": "interface",
+    "name": "ciphra_pay::atomic_swap_v2::IAtomicSwapV2",
+    "items": [
+      {
+        "type": "function",
+        "name": "initiate_swap",
+        "inputs": [
+          {
+            "name": "swap_id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "recipient",
+            "type": "core::starknet::contract_address::ContractAddress"
+          },
+          {
+            "name": "hash_lock",
+            "type": "core::felt252"
+          },
+          {
+            "name": "time_lock",
+            "type": "core::integer::u64"
+          },
+          {
+            "name": "amount",
+            "type": "core::integer::u256"
+          },
+          {
+            "name": "token_address",
+            "type": "core::starknet::contract_address::ContractAddress"
+          },
+          {
+            "name": "target_chain",
+            "type": "core::felt252"
+          },
+          {
+            "name": "target_swap_id",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "complete_swap",
+        "inputs": [
+          {
+            "name": "swap_id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "secret",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "refund_swap",
+        "inputs": [
+          {
+            "name": "swap_id",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "get_swap_details",
+        "inputs": [
+          {
+            "name": "swap_id",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "ciphra_pay::atomic_swap_v2::SwapDetails"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_swap_secret",
+        "inputs": [
+          {
+            "name": "swap_id",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::felt252"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "get_fee_percentage",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::integer::u256"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "set_fee_percentage",
+        "inputs": [
+          {
+            "name": "new_fee",
+            "type": "core::integer::u256"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "set_fee_recipient",
+        "inputs": [
+          {
+            "name": "new_recipient",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "withdraw_fees",
+        "inputs": [
+          {
+            "name": "token_address",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      }
+    ]
+  },
+  {
+    "type": "constructor",
+    "name": "constructor",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "fee_recipient",
+        "type": "core::starknet::contract_address::ContractAddress"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::SwapInitiated",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "swap_id",
+        "type": "core::felt252",
+        "kind": "key"
+      },
+      {
+        "name": "initiator",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "recipient",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "amount",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "token_address",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "hash_lock",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "time_lock",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "target_chain",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "target_swap_id",
+        "type": "core::felt252",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::SwapCompleted",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "swap_id",
+        "type": "core::felt252",
+        "kind": "key"
+      },
+      {
+        "name": "recipient",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "secret",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "amount_transferred",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "fee_collected",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "target_chain",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "target_swap_id",
+        "type": "core::felt252",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::SwapRefunded",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "swap_id",
+        "type": "core::felt252",
+        "kind": "key"
+      },
+      {
+        "name": "initiator",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "amount",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "target_chain",
+        "type": "core::felt252",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::FeeCollected",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "token_address",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "amount",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "recipient",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::Event",
+    "kind": "enum",
+    "variants": [
+      {
+        "name": "SwapInitiated",
+        "type": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::SwapInitiated",
+        "kind": "nested"
+      },
+      {
+        "name": "SwapCompleted",
+        "type": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::SwapCompleted",
+        "kind": "nested"
+      },
+      {
+        "name": "SwapRefunded",
+        "type": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::SwapRefunded",
+        "kind": "nested"
+      },
+      {
+        "name": "FeeCollected",
+        "type": "ciphra_pay::atomic_swap_v2::AtomicSwapV2::FeeCollected",
+        "kind": "nested"
+      }
+    ]
+  }
+]
