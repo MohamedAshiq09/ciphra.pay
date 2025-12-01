@@ -43,7 +43,7 @@ class StarknetDeployer {
     // Read Scarb build output
     // --------------------------------------------------
     private readContract(contractName: string) {
-        const base = `ciphra_pay_${contractName.toLowerCase()}`;
+        const base = `ciphra_pay_${contractName}`;
 
         const sierraPath = path.join(__dirname, `../target/dev/${base}.contract_class.json`);
         const casmPath = path.join(__dirname, `../target/dev/${base}.compiled_contract_class.json`);
