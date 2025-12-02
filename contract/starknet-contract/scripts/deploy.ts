@@ -163,7 +163,7 @@ class StarknetDeployer {
       [this.account.address]
     );
 
-    // ------- P2PTransfer (NEW) -------
+    // ------- P2PTransfer -------
     const p2pHash = await this.declareContract("P2PTransfer");
     const p2pAddr = await this.deployContract("P2PTransfer", p2pHash, [
       this.account.address,
