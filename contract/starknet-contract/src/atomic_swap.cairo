@@ -61,6 +61,7 @@ mod AtomicSwap {
     #[storage]
     struct Storage {
         swaps: Map<felt252, SwapDetails>,
+        swap_exists: Map<felt252, bool>,  // Track swap existence separately
         owner: ContractAddress,
     }
 
@@ -115,9 +116,11 @@ mod AtomicSwap {
             let caller = get_caller_address();
             let current_time = get_block_timestamp();
             
-            let existing_swap = self.swaps.read(swap_id);
-            assert(existing_swap.status == SwapStatus::Empty, 'Swap already exists');
+            // Check existence using the separate bool map (safe - bool defaults to false)
+            let exists = self.swap_exists.read(swap_id);
+            assert(!exists, 'Swap already exists');
             assert(time_lock > current_time, 'Time lock must be future');
+            assert(amount > 0, 'Amount must be positive');
             
             let swap_details = SwapDetails {
                 initiator: caller,
@@ -128,6 +131,8 @@ mod AtomicSwap {
                 status: SwapStatus::Active,
             };
             
+            // Mark as existing first, then write details
+            self.swap_exists.write(swap_id, true);
             self.swaps.write(swap_id, swap_details);
             
             self.emit(SwapInitiated {
@@ -144,6 +149,10 @@ mod AtomicSwap {
             swap_id: felt252,
             secret: felt252
         ) {
+            // Check existence first (safe - bool defaults to false)
+            let exists = self.swap_exists.read(swap_id);
+            assert(exists, 'Swap does not exist');
+            
             let swap = self.swaps.read(swap_id);
             
             assert(swap.status == SwapStatus::Active, 'Swap not active');
@@ -176,6 +185,10 @@ mod AtomicSwap {
             ref self: ContractState,
             swap_id: felt252
         ) {
+            // Check existence first (safe - bool defaults to false)
+            let exists = self.swap_exists.read(swap_id);
+            assert(exists, 'Swap does not exist');
+            
             let swap = self.swaps.read(swap_id);
             let caller = get_caller_address();
             
@@ -205,6 +218,10 @@ mod AtomicSwap {
             self: @ContractState,
             swap_id: felt252
         ) -> SwapDetails {
+            // Check existence first (safe - bool defaults to false)
+            let exists = self.swap_exists.read(swap_id);
+            assert(exists, 'Swap does not exist');
+            
             self.swaps.read(swap_id)
         }
     }
