@@ -1,5 +1,6 @@
 import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -11,7 +12,14 @@ import { StarknetModule } from './modules/starknet/starknet.module';
 import { SwapModule } from './modules/swap/swap.module';
 import { BridgeModule } from './modules/bridge/bridge.module';
 
-// X402 Payment Module (NEW!)
+// New multi-chain modules
+import { ZcashModule } from './modules/zcash/zcash.module';
+import { NearModule } from './modules/near/near.module';
+import { MinaModule } from './modules/mina/mina.module';
+import { WalletModule } from './modules/wallet/wallet.module';
+import { P2PModule } from './modules/p2p/p2p.module';
+
+// X402 Payment Module
 import { PaymentModule } from './modules/payment/payment.module';
 import { X402Middleware } from './modules/payment/x402.middleware';
 
@@ -26,6 +34,9 @@ import { X402Middleware } from './modules/payment/x402.middleware';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    
+    // Event system
+    EventEmitterModule.forRoot(),
 
     // Core modules
     AppConfigModule,
@@ -35,7 +46,14 @@ import { X402Middleware } from './modules/payment/x402.middleware';
     SwapModule,
     BridgeModule,
 
-    // X402 Payment Module (NEW!)
+    // Multi-chain modules
+    ZcashModule,
+    NearModule,
+    MinaModule,
+    WalletModule,
+    P2PModule,
+
+    // X402 Payment Module
     PaymentModule,
   ],
   controllers: [AppController],
@@ -52,6 +70,11 @@ export class AppModule implements NestModule {
         { path: 'api', method: RequestMethod.GET },
         { path: 'api/health', method: RequestMethod.GET },
         { path: 'bridge/health', method: RequestMethod.GET },
+        // Exclude new endpoints for now
+        { path: 'zcash', method: RequestMethod.ALL },
+        { path: 'wallet', method: RequestMethod.ALL },
+        { path: 'p2p', method: RequestMethod.ALL },
+        { path: 'swap', method: RequestMethod.ALL },
       )
       .forRoutes(
         // Protected endpoints (require X402 payment)
