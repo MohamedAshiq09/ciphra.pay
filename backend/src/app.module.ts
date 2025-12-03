@@ -1,4 +1,9 @@
-import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
+import {
+  Module,
+  NestModule,
+  MiddlewareConsumer,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
@@ -70,11 +75,6 @@ export class AppModule implements NestModule {
         { path: 'api', method: RequestMethod.GET },
         { path: 'api/health', method: RequestMethod.GET },
         { path: 'bridge/health', method: RequestMethod.GET },
-        // Exclude new endpoints for now
-        { path: 'zcash', method: RequestMethod.ALL },
-        { path: 'wallet', method: RequestMethod.ALL },
-        { path: 'p2p', method: RequestMethod.ALL },
-        { path: 'swap', method: RequestMethod.ALL },
       )
       .forRoutes(
         // Protected endpoints (require X402 payment)
