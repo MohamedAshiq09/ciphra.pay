@@ -9,7 +9,7 @@ import type {
   VerifyResponse,
   SettleResponse,
   StarknetNetwork,
-} from 'x402-starknet';
+} from 'x402-starknet'; // Temporarily disabled
 
 // Dynamic import cache for x402-starknet (ESM module)
 let x402Module: any = null;

@@ -2,7 +2,18 @@ import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from './payment.service';
 import { PaymentRequiredResponseDto } from './dto';
-import { decodePaymentHeader } from 'x402-starknet';
+// import { decodePaymentHeader } from 'x402-starknet'; // Package has export issues
+
+// Fallback function until x402-starknet package is fixed
+function decodePaymentHeader(header: string) {
+  try {
+    // Basic header parsing - replace with actual x402-starknet when fixed
+    const decoded = Buffer.from(header, 'base64').toString('utf8');
+    return JSON.parse(decoded);
+  } catch {
+    return { amount: '0', recipient: '', token: '' };
+  }
+}
 
 /**
  * X402 Middleware
