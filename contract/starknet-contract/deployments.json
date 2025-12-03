@@ -1,37 +1,31 @@
 {
   "network": "https://starknet-sepolia.g.alchemy.com/v2/TI9jXk5bEpPAnw6QwoziO",
   "deployer": "0x04baeae1872c93c283c9e660364fab37b22a5ba5276d176daf363d5b1d91e78c",
-  "timestamp": "2025-11-29T08:54:47.962Z",
+  "timestamp": "2025-12-01T15:57:34.551Z",
   "contracts": [
     {
       "contractName": "AtomicSwap",
-      "classHash": "0x32e01256c31b1fd8347b6200593865af83f387f0546daaf1b93b3b502ba8ca2",
-      "contractAddress": "0x7439d49105e5c4026eceee8b6d2d767081b57af65d67ea4e4722746e8ab66d5",
-      "transactionHash": "0x34c8eabcbab8d4e2ec4eeb83772725b9c1ca370f6cb54e5e42cb1adcc9e6e93"
-    },
-    {
-      "contractName": "AtomicSwapV2",
-      "classHash": "0x187bceeff67987200d41bd93292638b0dce62bec73bd65b3609b323b8d6ca47",
-      "contractAddress": "0x50f6628b1e53ccf3cdb925150e8e14f0a49e048e0fc8efd2038cdf127ca8f8e",
-      "transactionHash": "0x558a1cb369380b269ef6831531526c4f8d398fd4d3c091f739858df8b1a0b55"
+      "classHash": "0x7724813a30610e1291623c1da87a04f4bf56a1813d048b3038f531ab428060",
+      "contractAddress": "0x11309470c5e1b3cfa615303b7710ea8d4069894c54963087e5ebcdc7af82104",
+      "transactionHash": "0x34e8251796ff70d525236871ae9029becea5ffca1072d75347f39849e45530a"
     },
     {
       "contractName": "Escrow",
-      "classHash": "0x77ea0b9e8aa7148e141196c2ffa69a5ab740719e0c08250c84a3ad70a6e93dd",
-      "contractAddress": "0x5d0561a05d21d34a47313866c79aa7d01efaaf14a6724ad2c7d2aedb34b0262",
-      "transactionHash": "0x56a816deba15c9eafd8dfe83a79cb4a3bc0f96de550c03e862e93fbe62e6425"
+      "classHash": "0xa479767967f5b4e830502fe01f656d6d74094444ed6989e286001c5981d3b",
+      "contractAddress": "0x28d1b877c42a83619355c34a12e16aa1a035dcc46254e2f0b92a2e5dc67c7bf",
+      "transactionHash": "0x58d754cf829c1383bd4a29fb26b3adc7e19f34c75f533a84b3107c7786d7291"
     },
     {
       "contractName": "BridgeConnector",
-      "classHash": "0x1ab9fcbb1e0863ddf8a249246511751d0770b7fded811e5f4792ee3e089fbd6",
-      "contractAddress": "0x2ecda4c2ad22cf00f40991b626d2f0ccfb4f1cd1e1c4a41771e8eb531d4057f",
-      "transactionHash": "0x50b74801913cd0f5cae7984454c2195587b21f6548441a4af834a7e88fbb57a"
+      "classHash": "0x7d65ea7626f785adfa918e77f2b43a2a68c478ffbfb075ab8d11c9f0d10f67",
+      "contractAddress": "0x736e6a20b40d1dd7285f8788029bb2896d0fb517fb9dfe96f3cad3e4d1c4559",
+      "transactionHash": "0x4708c664976840ae7c74c90cf90ad324efd747975f15bbc18619c7bc4978833"
     },
     {
       "contractName": "P2PTransfer",
-      "classHash": "0x55aab0d80dc367209a3baca257c7c849e0afdd3d71ee6e1a6c3d28fa2af89f0",
-      "contractAddress": "0x3300ff9a6cc331316e40f1c242abcdcadaf0b33b08738ff5510e959c4bb6479",
-      "transactionHash": "0x163343e24db2be008d7c16d9a5e052acd3c5d82115f1694e3054ae32a2c3c17"
+      "classHash": "0x778a9edf970c548fb23aa3323f5919ce833a6b3866ae65bd2e4901be07babfe",
+      "contractAddress": "0x6c0b46038684595478740c810f8f2dc884fa8ac2939ef1a79243a9091ea4b03",
+      "transactionHash": "0x6eda8ef64c3d1814b4adead745a2dfa756e433f0b2140e98085e6a928fdbdeb"
     }
   ]
 }
