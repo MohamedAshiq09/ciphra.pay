@@ -7,7 +7,9 @@ const testScripts = [
   'test-zcash-to-starknet.js',
   'test-starknet-to-zcash.js',
   'test-zcash-to-near.js',
-  'test-zcash-to-mina.js'
+  'test-zcash-to-mina.js',
+  'test-starknet-to-mina.js',
+  'real-near-to-mina.js'
 ];
 
 function runTest(scriptName) {
