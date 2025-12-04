@@ -76,8 +76,10 @@ export class HashOracleService {
       // Reduce to fit within Starknet field
       secretBigInt = secretBigInt % STARKNET_PRIME;
 
-      // Compute Poseidon hash using Starknet.js
-      const poseidonHash = hash.computeHashOnElements([secretBigInt]);
+      // Compute POSEIDON hash using Starknet.js
+      // IMPORTANT: computeHashOnElements is PEDERSEN, not Poseidon!
+      // The Cairo contract uses poseidon_hash_span, so we must use computePoseidonHashOnElements
+      const poseidonHash = hash.computePoseidonHashOnElements([secretBigInt]);
 
       this.logger.debug(
         `Poseidon: ${secret.substring(0, 10)}... -> ${poseidonHash.substring(0, 10)}...`,
