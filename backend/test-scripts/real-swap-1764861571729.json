@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-12-04T15:19:31.729Z",
+  "swapId": "real_swap_1764861528165",
+  "starknet": {
+    "initTx": "0x18caba1ca361daf28b4886a574a867a8fe505f6b82ed12c6dec8219243957d1",
+    "completeTx": "0x237dd7c72d654455b4c50bc8dc1e1f3c50c2763804fa1aa5067e86d6159ca2f"
+  },
+  "zcash": {
+    "status": "failed"
+  },
+  "hashes": {
+    "sha256": "753a323a0b81c52ddda5b92e1579d70e197f076e4c8e4ec40ec84afa68f53925",
+    "poseidon": "0x68e396e84bf57cd2baf8ef6df9450283ba947d032bbb437cc1d6bfbdf254642"
+  },
+  "secret": "0526d8544e1cda6f96ccf95e35bd997a700a355fbb36075974adc8dcf4bdbd04"
+}

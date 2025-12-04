@@ -192,6 +192,18 @@ export class AppConfigService {
     return this.configService.get<string>('ZCASH_LIGHTWALLETD_URL', 'https://lightwalletd.testnet.electriccoin.co:9067');
   }
 
+  get zcashRpcUrl(): string {
+    return this.configService.get<string>('ZCASH_RPC_URL', 'http://localhost:8232');
+  }
+
+  get zcashRpcUser(): string {
+    return this.configService.get<string>('ZCASH_RPC_USER', 'zcashrpc');
+  }
+
+  get zcashRpcPassword(): string {
+    return this.configService.get<string>('ZCASH_RPC_PASSWORD', 'password');
+  }
+
   get zcashFacilitatorAddress(): string {
     const address = this.configService.get<string>('ZCASH_FACILITATOR_ADDRESS');
     if (!address) {
@@ -206,6 +218,10 @@ export class AppConfigService {
       throw new Error('ZCASH_FACILITATOR_PRIVATE_KEY is required');
     }
     return key;
+  }
+
+  get tatumApiKey(): string {
+    return this.configService.get<string>('TATUM_API_KEY', '');
   }
 
   // NEAR Configuration
