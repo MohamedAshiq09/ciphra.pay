@@ -62,7 +62,6 @@ async function runAtomicSwap() {
   const secret = generateSecret();
   const hashLock = computePoseidonHash(secret);
   const timeLock = Math.floor(Date.now() / 1000) + 3600; // 1 hour
-  const strkAmount = uint256.bnToUint256(1n); // 1 wei (minimal)
 
   log('🔑', `Swap ID: ${swapId}`);
   log('🔐', `Secret: ${secret}`);
@@ -78,20 +77,27 @@ async function runAtomicSwap() {
   separator();
 
   const provider = new RpcProvider({ nodeUrl: STARKNET_RPC });
-  const account = new Account(provider, STARKNET_WALLET, STARKNET_PRIVATE_KEY);
+  
+  // starknet.js v8 uses options object
+  const account = new Account({
+    provider: provider,
+    address: STARKNET_WALLET,
+    signer: STARKNET_PRIVATE_KEY,
+    cairoVersion: '1'
+  });
 
   let starknetInitTxHash;
   try {
     log('⏳', 'Submitting initiate_swap transaction...');
     
-    // Use direct execute call for more control
-    const calldata = CallData.compile({
-      swap_id: swapId,
-      hash_lock: hashLock,
-      time_lock: timeLock,
-      recipient: STARKNET_WALLET,
-      amount: strkAmount
-    });
+    // CORRECT ORDER: swap_id, recipient, hash_lock, time_lock, amount
+    const calldata = CallData.compile([
+      swapId,
+      STARKNET_WALLET,
+      hashLock,
+      timeLock,
+      { low: 1n, high: 0n }
+    ]);
     
     const initTx = await account.execute({
       contractAddress: STARKNET_CONTRACT,
@@ -123,6 +129,7 @@ async function runAtomicSwap() {
   const zcashClient = new LightwalletdClient('testnet');
   await zcashClient.connect();
 
+  let zcashTxid;
   try {
     const rawUtxos = await zcashClient.getAddressUtxos(ZCASH_ADDRESS);
     const blockHeight = parseInt((await zcashClient.getLatestBlock()).height);
@@ -163,7 +170,7 @@ async function runAtomicSwap() {
 
     // Error code 0 means success, errorMessage contains txid
     if (result.errorCode === 0 || result.errorCode === '') {
-      const zcashTxid = result.errorMessage;
+      zcashTxid = result.errorMessage;
       log('✅', 'ZCASH PAYMENT SENT!');
       console.log(`   TXID: ${zcashTxid}`);
       console.log(`   Amount: ${sendAmount / 100000000} ZEC`);
@@ -183,13 +190,11 @@ async function runAtomicSwap() {
   log('🔓', 'PHASE 3: Completing swap on Starknet (revealing secret)...');
   separator();
 
+  let starknetCompleteTxHash;
   try {
     log('⏳', 'Submitting complete_swap transaction...');
     
-    const completeCalldata = CallData.compile({
-      swap_id: swapId,
-      secret: secret
-    });
+    const completeCalldata = CallData.compile([swapId, secret]);
     
     const completeTx = await account.execute({
       contractAddress: STARKNET_CONTRACT,
@@ -197,13 +202,14 @@ async function runAtomicSwap() {
       calldata: completeCalldata
     });
 
-    log('📡', `TX Hash: ${completeTx.transaction_hash}`);
+    starknetCompleteTxHash = completeTx.transaction_hash;
+    log('📡', `TX Hash: ${starknetCompleteTxHash}`);
     log('⏳', 'Waiting for confirmation...');
 
-    await provider.waitForTransaction(completeTx.transaction_hash);
+    await provider.waitForTransaction(starknetCompleteTxHash);
     
     log('✅', 'STARKNET SWAP COMPLETED!');
-    console.log(`   Explorer: https://sepolia.starkscan.co/tx/${completeTx.transaction_hash}`);
+    console.log(`   Explorer: https://sepolia.starkscan.co/tx/${starknetCompleteTxHash}`);
     console.log('');
   } catch (error) {
     log('❌', `Failed to complete Starknet swap: ${error.message}`);
@@ -223,23 +229,32 @@ async function runAtomicSwap() {
   console.log(`  Swap ID: ${swapId}`);
   console.log(`  Secret (revealed): ${secret}`);
   console.log('');
-  console.log('  Starknet:');
-  console.log(`    - Swap initiated and completed`);
-  console.log(`    - Contract: ${STARKNET_CONTRACT}`);
+  console.log('  Starknet Transactions:');
+  console.log(`    - Initiate: https://sepolia.starkscan.co/tx/${starknetInitTxHash}`);
+  console.log(`    - Complete: https://sepolia.starkscan.co/tx/${starknetCompleteTxHash}`);
   console.log('');
-  console.log('  Zcash:');
-  console.log(`    - Payment sent from ${ZCASH_ADDRESS}`);
+  console.log('  Zcash Transaction:');
+  console.log(`    - TXID: ${zcashTxid}`);
   console.log(`    - Amount: 0.005 ZEC`);
   console.log('');
   separator();
 
   zcashClient.close();
+  
+  return {
+    swapId,
+    secret,
+    starknetInitTx: starknetInitTxHash,
+    starknetCompleteTx: starknetCompleteTxHash,
+    zcashTxid
+  };
 }
 
 // Run the atomic swap
 runAtomicSwap()
-  .then(() => {
+  .then((result) => {
     console.log('\n✅ Atomic swap test completed successfully!\n');
+    console.log('Result:', JSON.stringify(result, null, 2));
     process.exit(0);
   })
   .catch((error) => {
