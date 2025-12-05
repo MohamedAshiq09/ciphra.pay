@@ -11,10 +11,15 @@ import {
 } from "@starknet-react/core";
 
 export function StarknetProvider({ children }: { children: ReactNode }) {
-  const { connectors } = useInjectedConnectors({
+  const { connectors: injectedConnectors } = useInjectedConnectors({
     recommended: [argent(), braavos()],
-    includeRecommended: "onlyIfNoConnectors",
+    includeRecommended: "always",
   });
+
+  // Fallback to recommended connectors if none detected
+  const connectors = injectedConnectors.length > 0 
+    ? injectedConnectors 
+    : [argent(), braavos()];
 
   return (
     <StarknetConfig
