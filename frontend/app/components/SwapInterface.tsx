@@ -323,7 +323,7 @@ export function SwapInterface() {
           <button
             onClick={handleSwap}
             disabled={!amount || swapState.status !== "idle" || !zcashAddress}
-            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed rounded-2xl text-black font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 disabled:shadow-none"
+            className="w-full py-4 bg-linear-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed rounded-2xl text-black font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 disabled:shadow-none"
           >
             {swapState.status === "initiating" ? (
               <>
