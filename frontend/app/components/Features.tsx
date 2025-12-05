@@ -31,11 +31,13 @@ export function Features() {
       {features.map((feature, i) => (
         <div
           key={i}
-          className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-4 border border-gray-700/50 hover:border-purple-500/50 transition-all"
+          className="group bg-zinc-900/50 backdrop-blur-sm rounded-2xl p-5 border border-zinc-800/50 hover:border-emerald-500/30 transition-all duration-300"
         >
-          <feature.icon className="w-8 h-8 text-purple-400 mb-3" />
-          <h3 className="text-white font-semibold mb-1">{feature.title}</h3>
-          <p className="text-gray-400 text-sm">{feature.description}</p>
+          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-emerald-500/20 transition-colors">
+            <feature.icon className="w-5 h-5 text-emerald-400" />
+          </div>
+          <h3 className="text-white font-semibold mb-2">{feature.title}</h3>
+          <p className="text-zinc-500 text-sm leading-relaxed">{feature.description}</p>
         </div>
       ))}
     </div>
